@@ -109,28 +109,6 @@ func firstOrdinal(height uint32) uint64 {
 	return start
 }
 
-func assignOrdinals(block *bt.Block) {
-	first := firstOrdinal(block.Height)
-	last := first + subsidy(block.Height)
-	coinbaseOrdinals := make([]uint64, first, last)
-
-	for _, tx := range block.Transactions[1:] {
-		var ordinals []uint64
-		for _, input := range tx.Inputs {
-			ordinals = append(ordinals, input.Ordinals...)
-		}
-		for _, output := range tx.Outputs {
-			output.Ordinals = ordinals[:output.Value]
-			ordinals = ordinals[output.Value:]
-		}
-		coinbaseOrdinals = append(coinbaseOrdinals, ordinals...)
-	}
-	for _, output := range block.Transactions[0].Outputs {
-		output.Ordinals = coinbaseOrdinals[:output.Value]
-		coinbaseOrdinals = coinbaseOrdinals[output.Value:]
-	}
-}
-
 // # assign ordinals in given block
 // def assign_ordinals(block):
 //   first = first_ordinal(block.height)
