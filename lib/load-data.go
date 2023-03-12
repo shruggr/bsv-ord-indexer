@@ -24,7 +24,7 @@ func init() {
 	}
 }
 
-func LoadRawtx(txid string) (*bt.Tx, error) {
+func LoadTx(txid string) (*bt.Tx, error) {
 	if tx, ok := txCache[txid]; ok {
 		return tx, nil
 	}

@@ -24,7 +24,10 @@ type Inscription struct {
 func main() {
 	txid := os.Args[1]
 
-	tx := lib.LoadRawtx(txid)
+	tx, err := lib.LoadTx(txid)
+	if err != nil {
+		panic(err)
+	}
 
 	bobTx, err := bob.NewFromTx(tx)
 	if err != nil {

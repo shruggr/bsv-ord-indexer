@@ -41,7 +41,7 @@ func loadOrdinal(txid string, vout uint32, sat uint64) (uint64, error) {
 		return satoshi.OrdID, nil
 	}
 
-	tx, err := lib.LoadRawtx(txid)
+	tx, err := lib.LoadTx(txid)
 	if err != nil {
 		return 0, err
 	}
@@ -52,7 +52,7 @@ func loadOrdinal(txid string, vout uint32, sat uint64) (uint64, error) {
 
 	var inSats uint64
 	for _, input := range tx.Inputs {
-		inTx, err := lib.LoadRawtx(input.PreviousTxIDStr())
+		inTx, err := lib.LoadTx(input.PreviousTxIDStr())
 		if err != nil {
 			return 0, err
 		}
