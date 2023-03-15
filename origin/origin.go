@@ -21,6 +21,13 @@ type Satoshi struct {
 	OrdID  uint64
 }
 
+func (s *Satoshi) OriginString() string {
+	if s.Origin == nil {
+		return fmt.Sprintf("%s:%d:%d", s.Txid, s.Vout, s.OutSat)
+	}
+	return fmt.Sprintf("%s:%d:%d", s.Origin.Txid, s.Origin.Vout, s.Origin.OutSat)
+}
+
 func main() {
 	txid := os.Args[1]
 
@@ -35,6 +42,7 @@ func main() {
 	}
 
 	loadOrgin(txid, uint32(vout), sat)
+	fmt.Println()
 }
 
 func loadOrgin(txid string, vout uint32, voutSat uint64) (*Satoshi, error) {
