@@ -26,7 +26,7 @@ func main() {
 	fmt.Println()
 }
 
-func loadOrgin(txid string, vout uint32, voutSat uint64) (*Satoshi, error) {
+func loadOrgin(txid string, vout uint32, voutSat uint64) (*models.Satoshi, error) {
 	var satoshi *models.Satoshi
 	// TODO: Load satoshi from database.
 	if satoshi != nil {
