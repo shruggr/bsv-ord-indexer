@@ -1,11 +1,13 @@
 package lib
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/GorillaPool/go-junglebus"
+	"github.com/GorillaPool/go-junglebus/models"
 	"github.com/libsv/go-bt/v2"
 )
 
@@ -46,9 +48,9 @@ func LoadTx(txid string) (*bt.Tx, error) {
 	return tx, nil
 }
 
-// func LoadTxData(txid string) (*models.Transaction, error) {
-// 	return jbClient.GetTransaction(context.Background(), txid)
-// }
+func LoadTxData(txid string) (*models.Transaction, error) {
+	return jbClient.GetTransaction(context.Background(), txid)
+}
 
 // func LoadBlock(hash string, sat uint64) (*bt.Block, error) {
 // 	resp, err := http.Get(fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/main/block/hash/%s", hash))
