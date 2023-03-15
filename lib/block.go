@@ -1,9 +1,9 @@
 package lib
 
 type Block struct {
-	Height uint
-}
-
-func NewBlock(height uint) {
-
+	Hash    string   `json:"hash"`
+	Height  uint     `json:"height"`
+	TxCount uint     `json:"txcount"`
+	Tx      []string `json:"tx"`
+	Pages   []string `json:"pages"`
 }

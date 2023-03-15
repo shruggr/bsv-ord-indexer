@@ -1,13 +1,11 @@
 package lib
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/GorillaPool/go-junglebus"
-	"github.com/GorillaPool/go-junglebus/models"
 	"github.com/libsv/go-bt/v2"
 )
 
@@ -48,10 +46,40 @@ func LoadTx(txid string) (*bt.Tx, error) {
 	return tx, nil
 }
 
-func LoadTxData(txid string) (*models.Transaction, error) {
-	return jbClient.GetTransaction(context.Background(), txid)
-}
+// func LoadTxData(txid string) (*models.Transaction, error) {
+// 	return jbClient.GetTransaction(context.Background(), txid)
+// }
 
-func LoadBlock(hash string) {
+// func LoadBlock(hash string, sat uint64) (*bt.Block, error) {
+// 	resp, err := http.Get(fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/main/block/hash/%s", hash))
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-}
+// 	block := *lib.Block{}
+// 	err = json.Unmarshal(resp.Body, &block)
+
+// 	for _, pageUrl := range block.Pages {
+// 		resp, err := http.Get(fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/main%s", pageUrl))
+// 		if err != nil {
+// 			return nil, err
+// 		}
+
+// 		page := []string{}
+// 		err = json.Unmarshal(resp.Body, &page)
+
+// 		for _, txid := range page.Tx {
+// 			tx, err := LoadTx(txid)
+// 			if err != nil {
+// 				return nil, err
+// 			}
+// 			var txSat uint64
+// 			for _, out := range tx.Outputs {
+// 				txSat += out.Satoshis
+// 			}
+// 			if txSat == sat {
+// 				return tx, nil
+// 			}
+// 		}
+// 	}
+// }
