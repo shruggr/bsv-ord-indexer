@@ -9,17 +9,8 @@ import (
 	magic "github.com/bitcoinschema/go-map"
 
 	"github.com/shruggr/bsv-ord-indexer/lib"
+	"github.com/shruggr/bsv-ord-indexer/models"
 )
-
-type Inscription struct {
-	ID      uint64
-	Txid    string
-	Vout    uint32
-	Satoshi uint64
-	File    *b.B
-	Map     magic.MAP
-	OrdId   uint64
-}
 
 func main() {
 	txid := os.Args[1]
@@ -41,10 +32,10 @@ func main() {
 			prevVout = vout
 			continue
 		}
-		var inscr *Inscription
+		var inscr *models.Inscription
 		for _, tape := range out.Tape {
 			if *tape.Cell[0].S == "ord" && prevOut != nil {
-				inscr = &Inscription{
+				inscr = &models.Inscription{
 					Txid: tx.TxID(),
 					Vout: uint32(prevVout),
 				}

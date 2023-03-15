@@ -6,27 +6,8 @@ import (
 	"strconv"
 
 	"github.com/shruggr/bsv-ord-indexer/lib"
+	"github.com/shruggr/bsv-ord-indexer/models"
 )
-
-type Txo struct {
-	Script   []byte
-	Satoshis uint64
-}
-
-type Satoshi struct {
-	Txid   string
-	Vout   uint32
-	OutSat uint64
-	Origin *Satoshi
-	OrdID  uint64
-}
-
-func (s *Satoshi) OriginString() string {
-	if s.Origin == nil {
-		return fmt.Sprintf("%s:%d:%d", s.Txid, s.Vout, s.OutSat)
-	}
-	return fmt.Sprintf("%s:%d:%d", s.Origin.Txid, s.Origin.Vout, s.Origin.OutSat)
-}
 
 func main() {
 	txid := os.Args[1]
@@ -46,7 +27,7 @@ func main() {
 }
 
 func loadOrgin(txid string, vout uint32, voutSat uint64) (*Satoshi, error) {
-	var satoshi *Satoshi
+	var satoshi *models.Satoshi
 	// TODO: Load satoshi from database.
 	if satoshi != nil {
 		return satoshi, nil
@@ -79,7 +60,7 @@ func loadOrgin(txid string, vout uint32, voutSat uint64) (*Satoshi, error) {
 		voutSat = txOutSat - inSats
 
 		if inTx.Outputs[input.PreviousTxOutIndex].Satoshis > 1 {
-			origin := &Satoshi{
+			origin := &models.Satoshi{
 				Txid:   txid,
 				Vout:   vout,
 				OutSat: voutSat,

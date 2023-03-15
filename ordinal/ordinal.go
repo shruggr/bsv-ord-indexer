@@ -8,18 +8,6 @@ import (
 	"github.com/shruggr/bsv-ord-indexer/lib"
 )
 
-type Txo struct {
-	Script   []byte
-	Satoshis uint64
-}
-
-type Satoshi struct {
-	Txid    string
-	Vout    uint32
-	Satoshi uint64
-	OrdID   uint64
-}
-
 func main() {
 	txid := os.Args[1]
 	vout, err := strconv.ParseUint(os.Args[2], 10, 32)
