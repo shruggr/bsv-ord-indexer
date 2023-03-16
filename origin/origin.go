@@ -75,7 +75,6 @@ func LoadOrgin(txid string, vout uint32) (origin []byte, err error) {
 	for _, out := range tx.Outputs[0:vout] {
 		txOutSat += out.Satoshis
 	}
-	fmt.Println("TxOutSat:", txOutSat)
 
 	var inSats uint64
 	for _, input := range tx.Inputs {
@@ -89,7 +88,6 @@ func LoadOrgin(txid string, vout uint32) (origin []byte, err error) {
 			inSats += out.Satoshis
 			continue
 		}
-		fmt.Println("InSat:", inSats)
 
 		if inTx.Outputs[input.PreviousTxOutIndex].Satoshis > 1 {
 			origin = outpoint
