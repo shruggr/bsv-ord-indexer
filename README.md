@@ -7,7 +7,7 @@ Ordinal Indexing is a means of walking back the blockchain to determin a unique 
 
 Indexing Ordinals can be a heavy process without some specialized indexing of the blockchain. These indexes will be built in the near future
 
-## Origin Indexing
+## 1Sat Origin Indexing
 The BSV blockchain is unique amount blockchains which support ordinals, in that BSV supports single satoshi outputs. This allows us to take some short-cuts in indexing until a full ordinal indexer can be built efficiently. 
 
 Since ordinals are a unique serial number for each satoshi, an `origin` can be defined as the first outpoint where a satoshi exists alone, in a one satoshi output. Each subsequent spend of that satoshi will be crawled back only to the first ancestor where the origin has already been identified, or until it's ancestor is an output which contains more than one satoshi.
@@ -22,11 +22,12 @@ go build
 ./server
 ```
 
-### Environment Variables
-POSTGRES=<postgres connection string>
-LISTEN=<IP>:<PORT> # defaults to 0.0.0.0:8080
-
 Database Schema can be found in `data/schema.sql`
+
+### Environment Variables
+- POSTGRES=`<postgres connection string>`
+- LISTEN=`<IP>`:`<PORT>` # defaults to 0.0.0.0:8080
+
 
 ### APIs
 - GET `/origin/:txid/:vout`
