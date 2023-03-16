@@ -6,9 +6,11 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/GorillaPool/go-junglebus"
 	"github.com/GorillaPool/go-junglebus/models"
+	"github.com/joho/godotenv"
 	"github.com/libsv/go-bt/v2"
 )
 
@@ -16,9 +18,14 @@ var txCache = make(map[string]*bt.Tx)
 var jbClient *junglebus.JungleBusClient
 
 func init() {
+	godotenv.Load("../.env")
 	var err error
+	jb := os.Getenv("JUNGLEBUS")
+	if jb == "" {
+		jb = "https://junglebus.gorillapool.io"
+	}
 	jbClient, err = junglebus.New(
-		junglebus.WithHTTP("https://junglebus.gorillapool.io"),
+		junglebus.WithHTTP(jb),
 	)
 	if err != nil {
 		log.Fatalln(err.Error())
@@ -51,37 +58,3 @@ func LoadTx(txid string) (*bt.Tx, error) {
 func LoadTxData(txid string) (*models.Transaction, error) {
 	return jbClient.GetTransaction(context.Background(), txid)
 }
-
-// func LoadBlock(hash string, sat uint64) (*bt.Block, error) {
-// 	resp, err := http.Get(fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/main/block/hash/%s", hash))
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	block := *lib.Block{}
-// 	err = json.Unmarshal(resp.Body, &block)
-
-// 	for _, pageUrl := range block.Pages {
-// 		resp, err := http.Get(fmt.Sprintf("https://api.whatsonchain.com/v1/bsv/main%s", pageUrl))
-// 		if err != nil {
-// 			return nil, err
-// 		}
-
-// 		page := []string{}
-// 		err = json.Unmarshal(resp.Body, &page)
-
-// 		for _, txid := range page.Tx {
-// 			tx, err := LoadTx(txid)
-// 			if err != nil {
-// 				return nil, err
-// 			}
-// 			var txSat uint64
-// 			for _, out := range tx.Outputs {
-// 				txSat += out.Satoshis
-// 			}
-// 			if txSat == sat {
-// 				return tx, nil
-// 			}
-// 		}
-// 	}
-// }
