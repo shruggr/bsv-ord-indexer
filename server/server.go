@@ -15,7 +15,7 @@ import (
 func main() {
 	r := gin.Default()
 
-	r.GET("/origin/:txid/:vout", func(c *gin.Context) {
+	r.GET("/api/origin/:txid/:vout", func(c *gin.Context) {
 		c.Header("cache-control", "max-age=604800, immutable")
 		txid := c.Param("txid")
 		vout, err := strconv.ParseUint(c.Param("vout"), 10, 32)
