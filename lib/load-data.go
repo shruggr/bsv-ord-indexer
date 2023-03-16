@@ -3,6 +3,7 @@ package lib
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 
@@ -34,14 +35,13 @@ func LoadTx(txid string) (*bt.Tx, error) {
 		return nil, err
 	}
 
-	rawtx := make([]byte, resp.ContentLength)
-	_, err = resp.Body.Read(rawtx)
+	rawtx, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
 	tx, err := bt.NewTxFromBytes(rawtx)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	txCache[txid] = tx

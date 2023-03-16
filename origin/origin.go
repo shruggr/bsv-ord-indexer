@@ -1,41 +1,72 @@
-package main
+package origin
 
 import (
+	"database/sql"
+	"encoding/binary"
+	"encoding/hex"
 	"fmt"
+	"log"
 	"os"
-	"strconv"
 
+	"github.com/joho/godotenv"
 	"github.com/shruggr/bsv-ord-indexer/lib"
-	"github.com/shruggr/bsv-ord-indexer/models"
 )
 
-func main() {
-	txid := os.Args[1]
+var db *sql.DB
+var getOrigin *sql.Stmt
+var setOrigin *sql.Stmt
 
-	vout, err := strconv.ParseUint(os.Args[2], 10, 32)
+func init() {
+	godotenv.Load("../.env")
+
+	var err error
+	// var err error
+	db, err = sql.Open("postgres", os.Getenv("POSTGRES"))
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
-	sat, err := strconv.ParseUint(os.Args[3], 10, 64)
+	getOrigin, err = db.Prepare(`SELECT origin
+		FROM ordinals
+		WHERE outpoint = $1`,
+	)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
-	loadOrgin(txid, uint32(vout), sat)
-	fmt.Println()
+	setOrigin, err = db.Prepare(`INSERT INTO ordinals(outpoint, origin)
+		VALUES($1, $2)
+		ON CONFLICT(outpoint) DO UPDATE
+			SET origin=$2`,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
-func loadOrgin(txid string, vout uint32, voutSat uint64) (*models.Satoshi, error) {
-	var satoshi *models.Satoshi
-	// TODO: Load satoshi from database.
-	if satoshi != nil {
-		return satoshi, nil
+func LoadOrgin(txid string, vout uint32) (origin []byte, err error) {
+	outpoint, err := hex.DecodeString(txid)
+	if err != nil {
+		return
 	}
+	outpoint = binary.BigEndian.AppendUint32(outpoint, vout)
+	rows, err := getOrigin.Query(outpoint)
+	if err != nil {
+		return
+	}
+	if rows.Next() {
+		err = rows.Scan(&origin)
+		return
+	}
+
+	fmt.Printf("Indexing %x\n", outpoint)
 
 	tx, err := lib.LoadTx(txid)
 	if err != nil {
 		return nil, err
+	}
+	if int(vout) >= len(tx.Outputs) {
+		return nil, fmt.Errorf("vout out of range")
 	}
 	if tx.Outputs[vout].Satoshis != 1 {
 		return nil, fmt.Errorf("vout %d is not 1 satoshi", vout)
@@ -44,6 +75,7 @@ func loadOrgin(txid string, vout uint32, voutSat uint64) (*models.Satoshi, error
 	for _, out := range tx.Outputs[0:vout] {
 		txOutSat += out.Satoshis
 	}
+	fmt.Println("TxOutSat:", txOutSat)
 
 	var inSats uint64
 	for _, input := range tx.Inputs {
@@ -57,25 +89,22 @@ func loadOrgin(txid string, vout uint32, voutSat uint64) (*models.Satoshi, error
 			inSats += out.Satoshis
 			continue
 		}
-		voutSat = txOutSat - inSats
+		fmt.Println("InSat:", inSats)
 
 		if inTx.Outputs[input.PreviousTxOutIndex].Satoshis > 1 {
-			origin := &models.Satoshi{
-				Txid:   txid,
-				Vout:   vout,
-				OutSat: voutSat,
-				Origin: nil,
+			origin = outpoint
+		} else {
+			origin, err = LoadOrgin(input.PreviousTxIDStr(), input.PreviousTxOutIndex)
+			if err != nil {
+				return nil, err
 			}
-
-			// Save to database
-			return origin, nil
 		}
 
-		satoshi, err = loadOrgin(input.PreviousTxIDStr(), input.PreviousTxOutIndex, voutSat)
+		_, err = setOrigin.Exec(outpoint, origin)
 		if err != nil {
 			return nil, err
 		}
 		break
 	}
-	return satoshi, nil
+	return origin, nil
 }
