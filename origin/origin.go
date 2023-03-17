@@ -9,7 +9,7 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
-	"github.com/shruggr/bsv-ord-indexer/lib"
+	"github.com/shruggr/bsv-ord-indexer/data"
 )
 
 var db *sql.DB
@@ -18,9 +18,8 @@ var setOrigin *sql.Stmt
 
 func init() {
 	godotenv.Load("../.env")
-
 	var err error
-	// var err error
+
 	db, err = sql.Open("postgres", os.Getenv("POSTGRES"))
 	if err != nil {
 		log.Fatal(err)
@@ -28,15 +27,15 @@ func init() {
 
 	getOrigin, err = db.Prepare(`SELECT origin
 		FROM ordinals
-		WHERE outpoint = $1`,
+		WHERE outpoint=$1 AND outsat=$2 AND origin IS NOT NULL`,
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	setOrigin, err = db.Prepare(`INSERT INTO ordinals(outpoint, origin)
-		VALUES($1, $2)
-		ON CONFLICT(outpoint) DO UPDATE
+	setOrigin, err = db.Prepare(`INSERT INTO ordinals(outpoint, outsat, origin)
+		VALUES($1, 0, $2)
+		ON CONFLICT(outpoint, outsat) DO UPDATE
 			SET origin=$2`,
 	)
 	if err != nil {
@@ -50,7 +49,7 @@ func LoadOrgin(txid string, vout uint32) (origin []byte, err error) {
 		return
 	}
 	outpoint = binary.BigEndian.AppendUint32(outpoint, vout)
-	rows, err := getOrigin.Query(outpoint)
+	rows, err := getOrigin.Query(outpoint, 0)
 	if err != nil {
 		return
 	}
@@ -61,7 +60,7 @@ func LoadOrgin(txid string, vout uint32) (origin []byte, err error) {
 
 	fmt.Printf("Indexing %x\n", outpoint)
 
-	tx, err := lib.LoadTx(txid)
+	tx, err := data.LoadTx(txid)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +77,7 @@ func LoadOrgin(txid string, vout uint32) (origin []byte, err error) {
 
 	var inSats uint64
 	for _, input := range tx.Inputs {
-		inTx, err := lib.LoadTx(input.PreviousTxIDStr())
+		inTx, err := data.LoadTx(input.PreviousTxIDStr())
 		if err != nil {
 			return nil, err
 		}
