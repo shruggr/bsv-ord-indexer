@@ -1,88 +1,154 @@
-package main
+package ordinal
 
 import (
+	"database/sql"
+	"encoding/binary"
+	"fmt"
+	"log"
 	"os"
-	"strconv"
 
-	"github.com/libsv/go-bt/v2"
-	"github.com/shruggr/bsv-ord-indexer/lib"
+	"github.com/joho/godotenv"
 )
 
-func main() {
-	txid := os.Args[1]
-	vout, err := strconv.ParseUint(os.Args[2], 10, 32)
+var db *sql.DB
+var GetOrd *sql.Stmt
+var SetOrd *sql.Stmt
+var GetTxOuts *sql.Stmt
+var GetTxIns *sql.Stmt
+var GetBlkFeeTxIn *sql.Stmt
+
+func init() {
+	godotenv.Load("../.env")
+
+	var err error
+	db, err = sql.Open("postgres", os.Getenv("POSTGRES"))
 	if err != nil {
-		panic(err)
-	}
-	sat, err := strconv.ParseUint(os.Args[3], 10, 64)
-	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
-	loadOrdinal(txid, uint32(vout), sat)
+	GetOrd, err = db.Prepare(`SELECT ordinal
+		FROM ordinals
+		WHERE outpoint = $1 AND outsat=$2 AND ordinal IS NOT NULL`,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	SetOrd, err = db.Prepare(`INSERT INTO ordinals(outpoint, outsat, ordinal)
+		VALUES($1, $2, $3)
+		ON CONFLICT(outpoint, outsat) DO UPDATE
+			SET ordinal=$2`,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	GetTxOuts, err = db.Prepare(`SELECT vout, satoshis
+		FROM txos
+		WHERE txid=$1
+		ORDER BY vout ASC`,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	GetTxIns, err = db.Prepare(`SELECT vin, txid, vout, satoshis, coinbase
+		FROM txos
+		WHERE spend=$1
+		ORDER BY vin ASC`,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	GetBlkFeeTxIn, err = db.Prepare(`SELECT txid, fee, acc
+		FROM blk_txns
+		WHERE height=$1 AND acc<$2
+		ORDER BY acc DESC
+		LIMIT 1`,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
-func loadOrdinal(txid string, vout uint32, sat uint64) (uint64, error) {
-	var satoshi *Satoshi
-	// TODO: Load satoshi from database.
-	if satoshi != nil {
-		return satoshi.OrdID, nil
-	}
-
-	tx, err := lib.LoadTx(txid)
+func LoadOrdinal(txid []byte, vout uint32, sat uint64) (ordinal uint64, err error) {
+	outpoint := binary.BigEndian.AppendUint32(txid, vout)
+	rows, err := GetOrd.Query(outpoint, sat)
 	if err != nil {
-		return 0, err
-	}
-	var txSat uint64
-	for _, out := range tx.Outputs[0:vout] {
-		txSat += out.Satoshis
+		return
 	}
 
-	var inSats uint64
-	for _, input := range tx.Inputs {
-		inTx, err := lib.LoadTx(input.PreviousTxIDStr())
+	if rows.Next() {
+		err = rows.Scan(&ordinal)
+		return
+	}
+
+	var txOutSat uint64
+	var i uint32
+	rows, err = GetTxOuts.Query(txid, vout)
+	if err != nil {
+		return
+	}
+	for rows.Next() {
+		var satoshis uint64
+		err = rows.Scan(&i, &satoshis)
 		if err != nil {
-			return 0, err
+			return
 		}
-		out := inTx.Outputs[input.PreviousTxOutIndex]
-
-		if inSats+out.Satoshis < txSat {
-			inSats += out.Satoshis
-			continue
+		if vout == i {
+			txOutSat += sat
+			break
+		} else if vout < i {
+			txOutSat += satoshis
 		}
-
-		sat = txSat - inSats
-		if inTx.IsCoinbase() {
-			var height uint32
-			txData, err := lib.LoadTxData(txid)
-			if err != nil {
-				return 0, err
-			}
-			height = txData.BlockHeight
-			satoshis := subsidy(height)
-			if sat < satoshis {
-				satoshi.OrdID = firstOrdinal(height) + sat
-			} else {
-				var input *bt.Input
-				for satoshis < sat {
-					// TODO: find input sat
-
-				}
-				satoshi.OrdID, err = loadOrdinal(input.PreviousTxIDStr(), input.PreviousTxOutIndex, sat)
-				if err != nil {
-					return 0, err
-				}
-			}
-		} else {
-			satoshi.OrdID, err = loadOrdinal(input.PreviousTxIDStr(), input.PreviousTxOutIndex, sat)
-			if err != nil {
-				return 0, err
-			}
-		}
-
-		// TODO: Save OrdId to database.
 	}
-	return satoshi.OrdID, nil
+	rows.Close()
+	if i < vout {
+		return 0, fmt.Errorf("vout out of range")
+	}
+
+	rows, err = GetTxIns.Query(txid)
+	if err != nil {
+		return
+	}
+	var inSats uint64
+	for rows.Next() {
+		var vin uint32
+		var satoshis uint64
+		var coinbase uint32
+		err = rows.Scan(&vin, &txid, &vout, &satoshis, &coinbase)
+		if err != nil {
+			return
+		}
+
+		if inSats+satoshis >= txOutSat {
+			sat := txOutSat - inSats
+			if coinbase > 0 {
+				sub := subsidy(coinbase)
+				if sub > sat {
+					ordinal = firstOrdinal(coinbase) + sat
+				} else {
+					row := GetBlkFeeTxIn.QueryRow(coinbase, sat)
+					err = row.Scan(&txid, &vout)
+					if err != nil {
+						return
+					}
+					ordinal, err = LoadOrdinal(txid, vout, sat)
+				}
+			} else {
+				ordinal, err = LoadOrdinal(txid, vout, sat)
+			}
+			break
+		}
+		inSats += satoshis
+	}
+	rows.Close()
+	if ordinal > 0 {
+		_, err = SetOrd.Exec(outpoint, sat, ordinal)
+	}
+
+	return
 }
 
 func subsidy(height uint32) uint64 {
@@ -96,37 +162,3 @@ func firstOrdinal(height uint32) uint64 {
 	}
 	return start
 }
-
-// # assign ordinals in given block
-// def assign_ordinals(block):
-//   first = first_ordinal(block.height)
-//   last = first + subsidy(block.height)
-//   coinbase_ordinals = list(range(first, last))
-
-//   for transaction in block.transactions[1:]:
-//     ordinals = []
-//     for input in transaction.inputs:
-//       ordinals.extend(input.ordinals)
-
-//     for output in transaction.outputs:
-//       output.ordinals = ordinals[:output.value]
-//       del ordinals[:output.value]
-
-//     coinbase_ordinals.extend(ordinals)
-
-//   for output in block.transaction[0].outputs:
-//     output.ordinals = coinbase_ordinals[:output.value]
-//     del coinbase_ordinals[:output.value]
-
-// Satoshi Indexer
-// ===============
-// 1. Load transaction data.
-// 2. Find output satoshi index by counting satoshis in previous outputs.
-// 3. Find corresponding input and determine index within input txo.
-// 4. Load input transaction data.
-// 5. If input transaction is not a coinbase, then repeat steps 1-4.
-// 6. If input transaction coinbase and input txo index < block subsidy amount, calculate and return ordinal id.
-// 7. If input transaction coinbase and input txo index >= subsidy amount:
-// 8.   Load block data.
-
-// 9.   Load each transaction to determine fees
