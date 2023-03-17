@@ -14,7 +14,7 @@ import (
 	"github.com/libsv/go-bt/v2"
 )
 
-var txCache = make(map[string]*bt.Tx)
+// var txCache = make(map[string]*bt.Tx)
 var jbClient *junglebus.JungleBusClient
 
 func init() {
@@ -33,16 +33,13 @@ func init() {
 }
 
 func LoadTx(txid string) (*bt.Tx, error) {
-	if tx, ok := txCache[txid]; ok {
-		return tx, nil
-	}
-
 	resp, err := http.Get(fmt.Sprintf("https://junglebus.gorillapool.io/v1/transaction/get/%s/bin", txid))
 	if err != nil {
 		return nil, err
 	}
 
 	rawtx, err := io.ReadAll(resp.Body)
+	fmt.Println("RAWTX:", len(rawtx))
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +48,6 @@ func LoadTx(txid string) (*bt.Tx, error) {
 		return nil, err
 	}
 
-	txCache[txid] = tx
 	return tx, nil
 }
 

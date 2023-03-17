@@ -62,7 +62,7 @@ func LoadOrgin(txid string, vout uint32) (origin []byte, err error) {
 
 	tx, err := data.LoadTx(txid)
 	if err != nil {
-		return nil, err
+		return
 	}
 	if int(vout) >= len(tx.Outputs) {
 		return nil, fmt.Errorf("vout out of range")

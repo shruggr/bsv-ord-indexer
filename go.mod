@@ -5,9 +5,8 @@ go 1.19
 require (
 	github.com/GorillaPool/go-junglebus v0.0.0-20220928133317-2e3624f72bf9
 	github.com/bitcoinschema/go-b v0.0.17
-	github.com/bitcoinschema/go-bob v0.3.3
+	github.com/bitcoinschema/go-bmap v0.0.39
 	github.com/bitcoinschema/go-bpu v0.0.4
-	github.com/bitcoinschema/go-map v0.0.16
 	github.com/gin-gonic/gin v1.9.0
 	github.com/joho/godotenv v1.5.1
 	github.com/lib/pq v1.10.7
@@ -15,6 +14,15 @@ require (
 )
 
 require (
+	github.com/bitcoinschema/go-aip v0.1.9 // indirect
+	github.com/bitcoinschema/go-bap v0.2.8 // indirect
+	github.com/bitcoinschema/go-bitcoin v0.3.20 // indirect
+	github.com/bitcoinschema/go-bob v0.3.3 // indirect
+	github.com/bitcoinschema/go-boost v0.0.1 // indirect
+	github.com/bitcoinschema/go-map v0.0.16 // indirect
+	github.com/bitcoinsv/bsvd v0.0.0-20190609155523-4c29707f7173 // indirect
+	github.com/bitcoinsv/bsvlog v0.0.0-20181216181007-cb81b076bf2e // indirect
+	github.com/bitcoinsv/bsvutil v0.0.0-20181216182056-1d77cf353ea9 // indirect
 	github.com/bytedance/sonic v1.8.0 // indirect
 	github.com/centrifugal/centrifuge-go v0.9.3 // indirect
 	github.com/centrifugal/protocol v0.8.11 // indirect
@@ -31,6 +39,7 @@ require (
 	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
 	github.com/leodido/go-urn v1.2.1 // indirect
 	github.com/libsv/go-bk v0.1.6 // indirect
+	github.com/libsv/go-bt v1.0.8 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-isatty v0.0.17 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421 // indirect
@@ -43,10 +52,10 @@ require (
 	github.com/ugorji/go/codec v1.2.9 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	golang.org/x/arch v0.0.0-20210923205945-b76863e36670 // indirect
-	golang.org/x/crypto v0.6.0 // indirect
-	golang.org/x/net v0.7.0 // indirect
-	golang.org/x/sys v0.5.0 // indirect
-	golang.org/x/text v0.7.0 // indirect
+	golang.org/x/crypto v0.7.0 // indirect
+	golang.org/x/net v0.8.0 // indirect
+	golang.org/x/sys v0.6.0 // indirect
+	golang.org/x/text v0.8.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
