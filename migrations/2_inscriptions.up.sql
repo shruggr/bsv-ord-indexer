@@ -4,15 +4,17 @@ CREATE TABLE progress(
 );
 
 CREATE TABLE inscriptions(
-    id BIGINT,
     txid BYTEA,
     vout INTEGER,
-    sat BIGINT,
-    height INTEGER,
-    idx INTEGER,
+    filehash BYTEA,
+    filesize INTEGER,
+    filetype VARCHAR(256),
+    id BIGINT,
     origin BYTEA,
     ordinal BIGINT,
-    PRIMARY KEY(txid, vout, sat)
+    height INTEGER,
+    idx INTEGER,
+    PRIMARY KEY(txid, vout)
 );
 
 CREATE INDEX idx_inscriptions_id
@@ -23,3 +25,6 @@ ON inscriptions(origin);
 
 CREATE INDEX idx_inscriptions_ordinal
 ON inscriptions(ordinal);
+
+CREATE INDEX idx_inscriptions_filehash
+ON inscriptions(filehash);

@@ -22,12 +22,12 @@ func main() {
 	loadOrdinal(txid, uint32(vout), sat)
 }
 
-func loadOrdinal(txid string, vout uint32, sat uint64) (uint64, error) {
-	var satoshi *Satoshi
+func loadOrdinal(txid string, vout uint32, sat uint64) (ordinal uint64, err error) {
+	// var satoshi *Satoshi
 	// TODO: Load satoshi from database.
-	if satoshi != nil {
-		return satoshi.OrdID, nil
-	}
+	// if satoshi != nil {
+	// 	return satoshi.OrdID, nil
+	// }
 
 	tx, err := lib.LoadTx(txid)
 	if err != nil {
@@ -61,20 +61,20 @@ func loadOrdinal(txid string, vout uint32, sat uint64) (uint64, error) {
 			height = txData.BlockHeight
 			satoshis := subsidy(height)
 			if sat < satoshis {
-				satoshi.OrdID = firstOrdinal(height) + sat
+				ordinal = firstOrdinal(height) + sat
 			} else {
 				var input *bt.Input
 				for satoshis < sat {
 					// TODO: find input sat
 
 				}
-				satoshi.OrdID, err = loadOrdinal(input.PreviousTxIDStr(), input.PreviousTxOutIndex, sat)
+				ordinal, err = loadOrdinal(input.PreviousTxIDStr(), input.PreviousTxOutIndex, sat)
 				if err != nil {
 					return 0, err
 				}
 			}
 		} else {
-			satoshi.OrdID, err = loadOrdinal(input.PreviousTxIDStr(), input.PreviousTxOutIndex, sat)
+			ordinal, err = loadOrdinal(input.PreviousTxIDStr(), input.PreviousTxOutIndex, sat)
 			if err != nil {
 				return 0, err
 			}
@@ -82,7 +82,7 @@ func loadOrdinal(txid string, vout uint32, sat uint64) (uint64, error) {
 
 		// TODO: Save OrdId to database.
 	}
-	return satoshi.OrdID, nil
+	return
 }
 
 func subsidy(height uint32) uint64 {

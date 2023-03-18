@@ -9,7 +9,7 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
-	"github.com/shruggr/bsv-ord-indexer/data"
+	"github.com/shruggr/bsv-ord-indexer/lib"
 )
 
 var db *sql.DB
@@ -60,15 +60,23 @@ func LoadOrgin(txid string, vout uint32) (origin []byte, err error) {
 
 	fmt.Printf("Indexing %x\n", outpoint)
 
-	tx, err := data.LoadTx(txid)
+	tx, err := lib.LoadTx(txid)
 	if err != nil {
 		return
 	}
 	if int(vout) >= len(tx.Outputs) {
-		return nil, fmt.Errorf("vout out of range")
+		err = &lib.HttpError{
+			StatusCode: 400,
+			Err:        fmt.Errorf("vout out of range"),
+		}
+		return
 	}
 	if tx.Outputs[vout].Satoshis != 1 {
-		return nil, fmt.Errorf("vout %d is not 1 satoshi", vout)
+		err = &lib.HttpError{
+			StatusCode: 400,
+			Err:        fmt.Errorf("vout %d is not 1 satoshi", vout),
+		}
+		return
 	}
 	var txOutSat uint64
 	for _, out := range tx.Outputs[0:vout] {
@@ -77,7 +85,7 @@ func LoadOrgin(txid string, vout uint32) (origin []byte, err error) {
 
 	var inSats uint64
 	for _, input := range tx.Inputs {
-		inTx, err := data.LoadTx(input.PreviousTxIDStr())
+		inTx, err := lib.LoadTx(input.PreviousTxIDStr())
 		if err != nil {
 			return nil, err
 		}

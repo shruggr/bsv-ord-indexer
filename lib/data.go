@@ -1,4 +1,4 @@
-package data
+package lib
 
 import (
 	"context"
@@ -32,23 +32,25 @@ func init() {
 	}
 }
 
-func LoadTx(txid string) (*bt.Tx, error) {
+func LoadTx(txid string) (tx *bt.Tx, err error) {
 	resp, err := http.Get(fmt.Sprintf("https://junglebus.gorillapool.io/v1/transaction/get/%s/bin", txid))
 	if err != nil {
 		return nil, err
 	}
 
+	if resp.StatusCode >= 400 {
+		err = &HttpError{
+			StatusCode: resp.StatusCode,
+			Err:        err,
+		}
+		return
+	}
 	rawtx, err := io.ReadAll(resp.Body)
 	fmt.Println("RAWTX:", len(rawtx))
 	if err != nil {
 		return nil, err
 	}
-	tx, err := bt.NewTxFromBytes(rawtx)
-	if err != nil {
-		return nil, err
-	}
-
-	return tx, nil
+	return bt.NewTxFromBytes(rawtx)
 }
 
 func LoadTxData(txid string) (*models.Transaction, error) {
