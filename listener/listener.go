@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/GorillaPool/go-junglebus"
 	jbModels "github.com/GorillaPool/go-junglebus/models"
@@ -16,28 +15,18 @@ import (
 	bsvord "github.com/shruggr/bsv-ord-indexer"
 )
 
-const TRIGGER = 784000 // Placeholder
+const TRIGGER = 783000 // Placeholder
 const INDEXER = "inscriptions"
+const THREADS = 8
 
-// const
 var fromBlock uint64
 var db *sql.DB
-var setProgress *sql.Stmt
 
 func init() {
 	godotenv.Load("../.env")
 
 	var err error
 	db, err = sql.Open("postgres", os.Getenv("POSTGRES"))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	setProgress, err = db.Prepare(`INSERT INTO progress(indexer, height)
-		VALUES($1, $2)
-		ON CONFLICT(indexer) DO UPDATE
-			SET height=$2`,
-	)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -62,20 +51,31 @@ func main() {
 		log.Fatalln(err.Error())
 	}
 
-	subscriptionID := os.Getenv("ORD")
+	subscriptionID := os.Getenv("ONESAT")
 
+	done := make(chan struct{}, THREADS)
 	eventHandler := junglebus.EventHandler{
 		// do not set this function to leave out mined transactions
 		OnTransaction: func(txResp *jbModels.TransactionResponse) {
-			fmt.Printf("[TX]: %d: %v", txResp.BlockHeight, txResp.Id)
-			tx, err := bt.NewTxFromBytes(txResp.Transaction)
-			if err != nil {
-				return
-			}
-			_, err = bsvord.ProcessInsTx(tx, txResp.BlockHeight, uint32(txResp.BlockIndex))
-			if err != nil {
-				log.Printf("OnTransaction Error: %x %+v", txResp.Id, err)
-			}
+			done <- struct{}{}
+			go func(txResp jbModels.TransactionResponse) {
+				fmt.Printf("[TX]: %d: %v\n", txResp.BlockHeight, txResp.Id)
+				tx, err := bt.NewTxFromBytes(txResp.Transaction)
+				if err != nil {
+					log.Printf("OnTransaction Parse Error: %s %x %+v\n", txResp.Id, txResp.Transaction, err)
+
+				}
+				_, err = bsvord.ProcessInsTx(tx, txResp.BlockHeight, uint32(txResp.BlockIndex))
+				if err != nil {
+					log.Printf("OnTransaction Ins Error: %s %+v\n", txResp.Id, err)
+				}
+
+				err = ProcessOrigins(tx)
+				if err != nil {
+					log.Printf("OnTransaction Origins Error: %s %+v\n", txResp.Id, err)
+				}
+				<-done
+			}(*txResp)
 		},
 		// do not set this function to leave out mempool transactions
 		// OnMempool: func(tx *jbModels.TransactionResponse) {
@@ -86,9 +86,15 @@ func main() {
 		// 	}
 		// },
 		OnStatus: func(status *jbModels.ControlResponse) {
-			log.Printf("[STATUS]: %v", status)
+			log.Printf("[STATUS]: %v\n", status)
 			if status.StatusCode == 200 {
-				if _, err := setProgress.Exec(); err != nil {
+				if _, err := db.Exec(`INSERT INTO progress(indexer, height)
+					VALUES($1, $2)
+					ON CONFLICT(indexer) DO UPDATE
+						SET height=$2`,
+					INDEXER,
+					status.Block,
+				); err != nil {
 					log.Print(err)
 				}
 			}
@@ -99,16 +105,23 @@ func main() {
 	}
 
 	wg.Add(1)
-	var subscription *junglebus.Subscription
-	if subscription, err = junglebusClient.Subscribe(context.Background(), subscriptionID, fromBlock, eventHandler); err != nil {
+	// var subscription *junglebus.Subscription
+	if _, err = junglebusClient.Subscribe(context.Background(), subscriptionID, fromBlock, eventHandler); err != nil {
 		log.Printf("ERROR: failed getting subscription %s", err.Error())
-	} else {
-		time.Sleep(10 * time.Second) // stop after 10 seconds
-		if err = subscription.Unsubscribe(); err != nil {
-			log.Printf("ERROR: failed unsubscribing %s", err.Error())
-		}
 		wg.Done()
 	}
 
 	wg.Wait()
+}
+
+func ProcessOrigins(tx *bt.Tx) (err error) {
+	for vout, txout := range tx.Outputs {
+		if txout.Satoshis == 1 {
+			_, err = bsvord.LoadOrigin(tx.TxID(), uint32(vout))
+			if err != nil {
+				return
+			}
+		}
+	}
+	return
 }

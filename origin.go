@@ -1,35 +1,10 @@
 package bsvordindexer
 
 import (
-	"database/sql"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"log"
 )
-
-var getOrigin *sql.Stmt
-var setOrigin *sql.Stmt
-
-func init() {
-	var err error
-	getOrigin, err = Db.Prepare(`SELECT origin
-		FROM ordinals
-		WHERE outpoint=$1 AND outsat=$2 AND origin IS NOT NULL`,
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	setOrigin, err = Db.Prepare(`INSERT INTO ordinals(outpoint, outsat, origin)
-		VALUES($1, 0, $2)
-		ON CONFLICT(outpoint, outsat) DO UPDATE
-			SET origin=$2`,
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-}
 
 func LoadOrigin(txid string, vout uint32) (origin []byte, err error) {
 	outpoint, err := hex.DecodeString(txid)
@@ -37,16 +12,23 @@ func LoadOrigin(txid string, vout uint32) (origin []byte, err error) {
 		return
 	}
 	outpoint = binary.BigEndian.AppendUint32(outpoint, vout)
-	rows, err := getOrigin.Query(outpoint, 0)
+	rows, err := db.Query(`SELECT origin
+		FROM ordinals
+		WHERE outpoint=$1 AND outsat=$2 AND origin IS NOT NULL`,
+		outpoint,
+		0,
+	)
 	if err != nil {
 		return
 	}
 	if rows.Next() {
 		err = rows.Scan(&origin)
+		rows.Close()
 		return
 	}
+	rows.Close()
 
-	fmt.Printf("Indexing %x\n", outpoint)
+	fmt.Printf("Indexing Origin %x\n", outpoint)
 
 	tx, err := LoadTx(txid)
 	if err != nil {
@@ -93,7 +75,13 @@ func LoadOrigin(txid string, vout uint32) (origin []byte, err error) {
 			}
 		}
 
-		_, err = setOrigin.Exec(outpoint, origin)
+		_, err = db.Exec(`INSERT INTO ordinals(outpoint, outsat, origin)
+			VALUES($1, 0, $2)
+			ON CONFLICT(outpoint, outsat) DO UPDATE
+				SET origin=EXCLUDED.origin`,
+			outpoint,
+			origin,
+		)
 		if err != nil {
 			return nil, err
 		}
