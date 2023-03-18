@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	"github.com/libsv/go-bt/v2"
-	"github.com/shruggr/bsv-ord-indexer/lib"
 )
 
 func main() {
@@ -29,7 +28,7 @@ func loadOrdinal(txid string, vout uint32, sat uint64) (ordinal uint64, err erro
 	// 	return satoshi.OrdID, nil
 	// }
 
-	tx, err := lib.LoadTx(txid)
+	tx, err := LoadTx(txid)
 	if err != nil {
 		return 0, err
 	}
@@ -40,7 +39,7 @@ func loadOrdinal(txid string, vout uint32, sat uint64) (ordinal uint64, err erro
 
 	var inSats uint64
 	for _, input := range tx.Inputs {
-		inTx, err := lib.LoadTx(input.PreviousTxIDStr())
+		inTx, err := LoadTx(input.PreviousTxIDStr())
 		if err != nil {
 			return 0, err
 		}
@@ -54,7 +53,7 @@ func loadOrdinal(txid string, vout uint32, sat uint64) (ordinal uint64, err erro
 		sat = txSat - inSats
 		if inTx.IsCoinbase() {
 			var height uint32
-			txData, err := lib.LoadTxData(txid)
+			txData, err := LoadTxData(txid)
 			if err != nil {
 				return 0, err
 			}

@@ -8,13 +8,16 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	_ "github.com/lib/pq"
-	"github.com/shruggr/bsv-ord-indexer/lib"
-	"github.com/shruggr/bsv-ord-indexer/origin"
+	bsvord "github.com/shruggr/bsv-ord-indexer"
+	_ "github.com/shruggr/bsv-ord-indexer/server/docs"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func main() {
 	r := gin.Default()
+	url := ginSwagger.URL("/swagger/doc.json")
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler, url))
 
 	r.GET("/api/origin/:txid/:vout", func(c *gin.Context) {
 		txid := c.Param("txid")
@@ -24,9 +27,9 @@ func main() {
 			return
 		}
 
-		origin, err := origin.LoadOrgin(txid, uint32(vout))
+		origin, err := bsvord.LoadOrigin(txid, uint32(vout))
 		if err != nil {
-			if httpErr, ok := err.(*lib.HttpError); ok {
+			if httpErr, ok := err.(*bsvord.HttpError); ok {
 				c.String(httpErr.StatusCode, "%v", httpErr.Err)
 			} else {
 				c.String(http.StatusInternalServerError, "%v", err)
@@ -37,69 +40,25 @@ func main() {
 		c.String(http.StatusOK, hex.EncodeToString(origin))
 	})
 
-	r.POST("/api/inscription/:txid", func(c *gin.Context) {
-		tx, err := lib.LoadTx(c.Param("txid"))
+	r.POST("/api/inscriptions/:txid", func(c *gin.Context) {
+		tx, err := bsvord.LoadTx(c.Param("txid"))
 		if err != nil {
 			handleError(c, err)
 		}
-		err = lib.ProcessInsTx(tx, 0, 0)
+		ins, err := bsvord.ProcessInsTx(tx, 0, 0)
 		if err != nil {
 			handleError(c, err)
 		}
+		c.JSON(http.StatusOK, ins)
 	})
 
-	r.GET("/api/file/origin/:origin", func(c *gin.Context) {
+	r.GET("/api/files/origins/:origin", func(c *gin.Context) {
 		origin, err := hex.DecodeString(c.Param("origin"))
 		if err != nil {
 			handleError(c, err)
 			return
 		}
-		ins, err := lib.LoadInsByOrigin(origin)
-		if err != nil {
-			handleError(c, err)
-			return
-		}
-		c.Header("cache-control", "max-age=604800,immutable")
-		c.Data(http.StatusOK, ins.Type, ins.Body)
-	})
-
-	r.GET("/api/file/ordinal/:ordinal", func(c *gin.Context) {
-		origin, err := hex.DecodeString(c.Param("origin"))
-		if err != nil {
-			handleError(c, err)
-			return
-		}
-		ins, err := lib.LoadInsByOrigin(origin)
-		if err != nil {
-			handleError(c, err)
-			return
-		}
-		c.Header("cache-control", "max-age=604800,immutable")
-		c.Data(http.StatusOK, ins.Type, ins.Body)
-	})
-
-	r.GET("/api/file/hash/:hash", func(c *gin.Context) {
-		origin, err := hex.DecodeString(c.Param("origin"))
-		if err != nil {
-			handleError(c, err)
-			return
-		}
-		ins, err := lib.LoadInsByOrigin(origin)
-		if err != nil {
-			handleError(c, err)
-			return
-		}
-		c.Header("cache-control", "max-age=604800,immutable")
-		c.Data(http.StatusOK, ins.Type, ins.Body)
-	})
-
-	r.GET("/api/file/inscription/:id", func(c *gin.Context) {
-		origin, err := hex.DecodeString(c.Param("origin"))
-		if err != nil {
-			handleError(c, err)
-			return
-		}
-		ins, err := lib.LoadInsByOrigin(origin)
+		ins, err := bsvord.LoadInsByOrigin(origin)
 		if err != nil {
 			handleError(c, err)
 			return
@@ -116,7 +75,7 @@ func main() {
 }
 
 func handleError(c *gin.Context, err error) {
-	if httpErr, ok := err.(*lib.HttpError); ok {
+	if httpErr, ok := err.(*bsvord.HttpError); ok {
 		c.String(httpErr.StatusCode, "%v", httpErr.Err)
 	} else {
 		c.String(http.StatusInternalServerError, "%v", err)

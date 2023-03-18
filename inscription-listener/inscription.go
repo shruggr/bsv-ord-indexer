@@ -13,7 +13,7 @@ import (
 	jbModels "github.com/GorillaPool/go-junglebus/models"
 	"github.com/joho/godotenv"
 	"github.com/libsv/go-bt/v2"
-	"github.com/shruggr/bsv-ord-indexer/lib"
+	bsvord "github.com/shruggr/bsv-ord-indexer"
 )
 
 const TRIGGER = 784000 // Placeholder
@@ -62,11 +62,7 @@ func main() {
 		log.Fatalln(err.Error())
 	}
 
-	argsWithoutProg := os.Args[1:]
-	if len(argsWithoutProg) < 2 {
-		panic("no subscription id or block height given")
-	}
-	subscriptionID := argsWithoutProg[0]
+	subscriptionID := os.Getenv("ORD")
 
 	eventHandler := junglebus.EventHandler{
 		// do not set this function to leave out mined transactions
@@ -76,7 +72,7 @@ func main() {
 			if err != nil {
 				return
 			}
-			err = lib.ProcessInsTx(tx, txResp.BlockHeight, uint32(txResp.BlockIndex))
+			_, err = bsvord.ProcessInsTx(tx, txResp.BlockHeight, uint32(txResp.BlockIndex))
 			if err != nil {
 				log.Printf("OnTransaction Error: %x %+v", txResp.Id, err)
 			}
