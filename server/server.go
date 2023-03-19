@@ -27,7 +27,7 @@ func main() {
 			return
 		}
 
-		origin, err := bsvord.LoadOrigin(txid, uint32(vout))
+		origin, err := bsvord.LoadOrigin(txid, uint32(vout), 25)
 		if err != nil {
 			if httpErr, ok := err.(*bsvord.HttpError); ok {
 				c.String(httpErr.StatusCode, "%v", httpErr.Err)
