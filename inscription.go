@@ -86,8 +86,7 @@ func (im *InscriptionMeta) Save() (err error) {
 		INSERT INTO inscriptions(txid, vout, height, idx, filehash, filesize, filetype, origin)
 		VALUES($1, $2, $3, $4, $5, $6, $7, $8)
 		ON CONFLICT(txid, vout) DO UPDATE
-			SET height=EXCLUDED.height, idx=EXCLUDED.idx
-			WHERE EXCLUDED.height > 0 AND EXCLUDED.idx > 0`,
+			SET height=EXCLUDED.height, idx=EXCLUDED.idx`,
 		im.Txid,
 		im.Vout,
 		im.Height,
@@ -120,7 +119,7 @@ func ProcessInsTx(tx *bt.Tx, height uint32, idx uint32) (ins []*InscriptionMeta,
 			Height: height,
 			Idx:    idx,
 		}
-		im.Origin, err = LoadOrigin(tx.TxID(), uint32(vout))
+		im.Origin, err = LoadOrigin(tx.TxID(), uint32(vout), 100)
 		if err != nil {
 			return
 		}

@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-func LoadOrigin(txid string, vout uint32) (origin []byte, err error) {
+func LoadOrigin(txid string, vout uint32, maxDepth uint32) (origin []byte, err error) {
 	outpoint, err := hex.DecodeString(txid)
 	if err != nil {
 		return
@@ -28,6 +28,9 @@ func LoadOrigin(txid string, vout uint32) (origin []byte, err error) {
 	}
 	rows.Close()
 
+	if maxDepth == 0 {
+		return
+	}
 	fmt.Printf("Indexing Origin %x\n", outpoint)
 
 	tx, err := LoadTx(txid)
@@ -69,21 +72,23 @@ func LoadOrigin(txid string, vout uint32) (origin []byte, err error) {
 		if inTx.Outputs[input.PreviousTxOutIndex].Satoshis > 1 {
 			origin = outpoint
 		} else {
-			origin, err = LoadOrigin(input.PreviousTxIDStr(), input.PreviousTxOutIndex)
+			origin, err = LoadOrigin(input.PreviousTxIDStr(), input.PreviousTxOutIndex, maxDepth-1)
 			if err != nil {
 				return nil, err
 			}
 		}
 
-		_, err = db.Exec(`INSERT INTO ordinals(outpoint, outsat, origin)
-			VALUES($1, 0, $2)
-			ON CONFLICT(outpoint, outsat) DO UPDATE
-				SET origin=EXCLUDED.origin`,
-			outpoint,
-			origin,
-		)
-		if err != nil {
-			return nil, err
+		if len(origin) > 0 {
+			_, err = db.Exec(`INSERT INTO ordinals(outpoint, outsat, origin)
+				VALUES($1, 0, $2)
+				ON CONFLICT(outpoint, outsat) DO UPDATE
+					SET origin=EXCLUDED.origin`,
+				outpoint,
+				origin,
+			)
+			if err != nil {
+				return nil, err
+			}
 		}
 		break
 	}
