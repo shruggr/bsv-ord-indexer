@@ -14,7 +14,6 @@ import (
 	bsvord "github.com/shruggr/bsv-ord-indexer"
 )
 
-const TRIGGER = 782000 // Placeholder 783968
 const INDEXER = "1sat"
 const THREADS = 16
 
@@ -41,14 +40,14 @@ func main() {
 		log.Fatalln(err.Error())
 	}
 
-	var fromBlock uint64
+	var fromBlock uint32
 	row := db.QueryRow(`SELECT height
 			FROM progress
 			WHERE indexer='1sat'`,
 	)
 	row.Scan(&fromBlock)
-	if fromBlock < TRIGGER {
-		fromBlock = TRIGGER
+	if fromBlock < bsvord.TRIGGER {
+		fromBlock = bsvord.TRIGGER
 	}
 
 	var wg2 sync.WaitGroup
@@ -56,7 +55,7 @@ func main() {
 	if _, err = junglebusClient.Subscribe(
 		context.Background(),
 		os.Getenv("ONESAT"),
-		fromBlock,
+		uint64(fromBlock),
 		junglebus.EventHandler{
 			OnTransaction: onOneSatHandler,
 			OnMempool:     onOneSatHandler,

@@ -18,6 +18,8 @@ import (
 	"github.com/libsv/go-bt/v2"
 )
 
+var TRIGGER = uint32(783968)
+
 // var txCache = make(map[string]*bt.Tx)
 var db *sql.DB
 var JBClient *junglebus.JungleBusClient

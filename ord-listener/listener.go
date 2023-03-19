@@ -15,7 +15,6 @@ import (
 	bsvord "github.com/shruggr/bsv-ord-indexer"
 )
 
-const TRIGGER = 783000 // Placeholder
 const INDEXER = "ord"
 
 var db *sql.DB
@@ -41,20 +40,20 @@ func main() {
 
 	wg.Add(1)
 
-	var fromBlock uint64
+	var fromBlock uint32
 	row := db.QueryRow(`SELECT height
 			FROM progress
 			WHERE indexer='ord'`,
 	)
 	row.Scan(&fromBlock)
-	if fromBlock < TRIGGER {
-		fromBlock = TRIGGER
+	if fromBlock < bsvord.TRIGGER {
+		fromBlock = bsvord.TRIGGER
 	}
 
 	if _, err = junglebusClient.Subscribe(
 		context.Background(),
 		os.Getenv("ORD"),
-		fromBlock,
+		uint64(fromBlock),
 		junglebus.EventHandler{
 			OnTransaction: onOrdHandler,
 			OnMempool:     onOrdHandler,
