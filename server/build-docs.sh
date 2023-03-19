@@ -1,0 +1,1 @@
+swag init -g ./server.go --output docs
