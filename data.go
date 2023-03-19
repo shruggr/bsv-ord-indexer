@@ -19,16 +19,17 @@ import (
 )
 
 // var txCache = make(map[string]*bt.Tx)
-var Db *sql.DB
+var db *sql.DB
 var JBClient *junglebus.JungleBusClient
 
 func init() {
 	godotenv.Load("../.env")
 	var err error
-	Db, err = sql.Open("postgres", os.Getenv("POSTGRES"))
+	db, err = sql.Open("postgres", os.Getenv("POSTGRES"))
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	jb := os.Getenv("JUNGLEBUS")
 	if jb == "" {
 		jb = "https://junglebus.gorillapool.io"
@@ -55,7 +56,6 @@ func LoadTx(txid string) (tx *bt.Tx, err error) {
 		return
 	}
 	rawtx, err := io.ReadAll(resp.Body)
-	fmt.Println("RAWTX:", len(rawtx))
 	if err != nil {
 		return nil, err
 	}

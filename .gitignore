@@ -1,2 +1,5 @@
 server/server
+migrations/migrations
+1sat-listener/1sat-listener
+ord-listener/ord-listener
 .env

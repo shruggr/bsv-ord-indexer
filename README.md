@@ -14,23 +14,35 @@ Since ordinals are a unique serial number for each satoshi, an `origin` can be d
 
 If a satoshi is subsequently packaged up in an output of more than one satoshi, the origin is no longer carried forward. If the satoshi is later spent into another one satoshi output, a new origin will be created. Both of these origins would be the same ordinal, and when the ordinal indexer is complete, both those origins will be identified as both being the same ordinal.
 
-## Getting Started
+### Environment Variables
+- POSTGRES=`<postgres connection string>`
+- LISTEN=`<IP>`:`<PORT>` # defaults to 0.0.0.0:8080
+- ONESAT=`<GorillaPool "1sat" Subscription ID>`
+
+
+## Run DB migrations
 ```
-go get
+cd migrations
+go build
+./migrations
+```
+
+## Run Web Server
+```
 cd server
 go build
 ./server
 ```
 
-Database Schema can be found in `data/schema.sql`
-
-### Environment Variables
-- POSTGRES=`<postgres connection string>`
-- LISTEN=`<IP>`:`<PORT>` # defaults to 0.0.0.0:8080
-
+## Run Inscriptions Indexer
+```
+cd 1sat-listener
+go build
+./1sat-listener
+```
 
 ### APIs
-- GET `/origin/:txid/:vout`
+- GET `/api/origin/:txid/:vout`
 - Returns `origin` as a string
 
 

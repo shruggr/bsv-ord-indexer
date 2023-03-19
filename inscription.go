@@ -82,12 +82,11 @@ type InscriptionMeta struct {
 }
 
 func (im *InscriptionMeta) Save() (err error) {
-	_, err = Db.Exec(`
+	_, err = db.Exec(`
 		INSERT INTO inscriptions(txid, vout, height, idx, filehash, filesize, filetype, origin)
 		VALUES($1, $2, $3, $4, $5, $6, $7, $8)
 		ON CONFLICT(txid, vout) DO UPDATE
-			SET height=$3, idx=$4
-			WHERE EXCLUDED.height > 0 AND EXCLUDED.idx > 0`,
+			SET height=EXCLUDED.height, idx=EXCLUDED.idx`,
 		im.Txid,
 		im.Vout,
 		im.Height,
@@ -120,7 +119,7 @@ func ProcessInsTx(tx *bt.Tx, height uint32, idx uint32) (ins []*InscriptionMeta,
 			Height: height,
 			Idx:    idx,
 		}
-		im.Origin, err = LoadOrigin(tx.TxID(), uint32(vout))
+		im.Origin, err = LoadOrigin(tx.TxID(), uint32(vout), 100)
 		if err != nil {
 			return
 		}
@@ -135,7 +134,7 @@ func ProcessInsTx(tx *bt.Tx, height uint32, idx uint32) (ins []*InscriptionMeta,
 }
 
 func GetInsByOrigin(origin []byte) (ins []*InscriptionMeta, err error) {
-	rows, err := Db.Query(`SELECT txid, vout, filehash, filesize, filetype, id, origin, ordinal, height, idx
+	rows, err := db.Query(`SELECT txid, vout, filehash, filesize, filetype, id, origin, ordinal, height, idx
 		FROM inscriptions
 		WHERE origin=$1
 		ORDER BY height DESC, idx DESC`,
@@ -144,6 +143,7 @@ func GetInsByOrigin(origin []byte) (ins []*InscriptionMeta, err error) {
 	if err != nil {
 		return
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		im := &InscriptionMeta{}
@@ -168,7 +168,7 @@ func GetInsByOrigin(origin []byte) (ins []*InscriptionMeta, err error) {
 }
 
 func LoadInsByOrigin(origin []byte) (ins *Inscription, err error) {
-	rows, err := Db.Query(`SELECT txid, vout, filetype
+	rows, err := db.Query(`SELECT txid, vout, filetype
 		FROM inscriptions
 		WHERE origin=$1
 		ORDER BY height DESC, idx DESC
@@ -178,6 +178,7 @@ func LoadInsByOrigin(origin []byte) (ins *Inscription, err error) {
 	if err != nil {
 		return
 	}
+	defer rows.Close()
 
 	if !rows.Next() {
 		err = &HttpError{
