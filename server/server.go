@@ -19,7 +19,7 @@ func main() {
 	url := ginSwagger.URL("/swagger/doc.json")
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler, url))
 
-	r.GET("/api/origin/:txid/:vout", func(c *gin.Context) {
+	r.GET("/api/origins/:txid/:vout", func(c *gin.Context) {
 		txid := c.Param("txid")
 		vout, err := strconv.ParseUint(c.Param("vout"), 10, 32)
 		if err != nil {

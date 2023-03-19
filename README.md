@@ -41,9 +41,17 @@ go build
 ./1sat-listener
 ```
 
-### APIs
-- GET `/api/origin/:txid/:vout`
-- Returns `origin` as a string
+## APIs
+#### GET `/api/origins/:txid/:vout`
+- Returns `origin` as a hex string
+
+#### GET `/api/files/origins/:origin`
+- Returns inscribed file
+
+#### POST `/api/inscriptions/:txid`
+- Payload: none
+- Force indexing of a transaction
+
 
 
 
