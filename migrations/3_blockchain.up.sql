@@ -1,3 +1,24 @@
+CREATE TABLE IF NOT EXISTS blocks(
+	id BYTEA PRIMARY KEY,
+	height INTEGER,
+	indexed TIMESTAMP,
+	status INTEGER,
+	created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_blocks_height_status
+ON blocks(height, status);
+
+INSERT INTO blocks(id, height, status, indexed)
+VALUES(
+	decode('000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f', 'hex')),
+	0,
+	CURRENT_TIMESTAMP,
+	2
+)
+ON CONFLICT DO NOTHING;
+
+CREATE INDEX IF NOT EXISTS idx_blocks_status_height
+ON blocks(status, height DESC);
 
 CREATE TABLE IF NOT EXISTS txos(
 	txid BYTEA, -- 32

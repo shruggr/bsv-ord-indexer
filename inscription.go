@@ -82,7 +82,7 @@ type InscriptionMeta struct {
 }
 
 func (im *InscriptionMeta) Save() (err error) {
-	_, err = db.Exec(`
+	_, err = Db.Exec(`
 		INSERT INTO inscriptions(txid, vout, height, idx, filehash, filesize, filetype, origin)
 		VALUES($1, $2, $3, $4, $5, $6, $7, $8)
 		ON CONFLICT(txid, vout) DO UPDATE
@@ -134,7 +134,7 @@ func ProcessInsTx(tx *bt.Tx, height uint32, idx uint32) (ins []*InscriptionMeta,
 }
 
 func GetInsByOrigin(origin []byte) (ins []*InscriptionMeta, err error) {
-	rows, err := db.Query(`SELECT txid, vout, filehash, filesize, filetype, id, origin, ordinal, height, idx
+	rows, err := Db.Query(`SELECT txid, vout, filehash, filesize, filetype, id, origin, ordinal, height, idx
 		FROM inscriptions
 		WHERE origin=$1
 		ORDER BY height DESC, idx DESC`,
@@ -168,7 +168,7 @@ func GetInsByOrigin(origin []byte) (ins []*InscriptionMeta, err error) {
 }
 
 func LoadInsByOrigin(origin []byte) (ins *Inscription, err error) {
-	rows, err := db.Query(`SELECT txid, vout, filetype
+	rows, err := Db.Query(`SELECT txid, vout, filetype
 		FROM inscriptions
 		WHERE origin=$1
 		ORDER BY height DESC, idx DESC

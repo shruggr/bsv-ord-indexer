@@ -12,7 +12,7 @@ func LoadOrigin(txid string, vout uint32, maxDepth uint32) (origin []byte, err e
 		return
 	}
 	outpoint = binary.BigEndian.AppendUint32(outpoint, vout)
-	rows, err := db.Query(`SELECT origin
+	rows, err := Db.Query(`SELECT origin
 		FROM ordinals
 		WHERE outpoint=$1 AND outsat=$2 AND origin IS NOT NULL`,
 		outpoint,
@@ -79,7 +79,7 @@ func LoadOrigin(txid string, vout uint32, maxDepth uint32) (origin []byte, err e
 		}
 
 		if len(origin) > 0 {
-			_, err = db.Exec(`INSERT INTO ordinals(outpoint, outsat, origin)
+			_, err = Db.Exec(`INSERT INTO ordinals(outpoint, outsat, origin)
 				VALUES($1, 0, $2)
 				ON CONFLICT(outpoint, outsat) DO UPDATE
 					SET origin=EXCLUDED.origin`,

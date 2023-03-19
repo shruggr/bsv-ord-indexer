@@ -18,16 +18,16 @@ import (
 	"github.com/libsv/go-bt/v2"
 )
 
-var TRIGGER = uint32(783968)
+var TRIGGER = uint32(783000) //uint32(783968)
 
 // var txCache = make(map[string]*bt.Tx)
-var db *sql.DB
+var Db *sql.DB
 var JBClient *junglebus.JungleBusClient
 
 func init() {
 	godotenv.Load("../.env")
 	var err error
-	db, err = sql.Open("postgres", os.Getenv("POSTGRES"))
+	Db, err = sql.Open("postgres", os.Getenv("POSTGRES"))
 	if err != nil {
 		log.Fatal(err)
 	}
