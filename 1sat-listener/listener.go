@@ -61,9 +61,9 @@ func main() {
 			OnTransaction: onOneSatHandler,
 			OnMempool:     onOneSatHandler,
 			OnStatus: func(status *jbModels.ControlResponse) {
-				wg.Wait()
 				log.Printf("[STATUS]: %v\n", status)
 				if status.StatusCode == 200 {
+					wg.Wait()
 					if _, err := db.Exec(`INSERT INTO progress(indexer, height)
 						VALUES($1, $2)
 						ON CONFLICT(indexer) DO UPDATE

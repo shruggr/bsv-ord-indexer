@@ -4,9 +4,12 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+
+	"github.com/libsv/go-bt/v2"
 )
 
 func LoadOrigin(txid string, vout uint32, maxDepth uint32) (origin []byte, err error) {
+	fmt.Println("LoadOrigin:", txid, vout)
 	outpoint, err := hex.DecodeString(txid)
 	if err != nil {
 		return
@@ -33,7 +36,11 @@ func LoadOrigin(txid string, vout uint32, maxDepth uint32) (origin []byte, err e
 	}
 	fmt.Printf("Indexing Origin %x\n", outpoint)
 
-	tx, err := LoadTx(txid)
+	txData, err := LoadTxData(txid)
+	if err != nil {
+		return
+	}
+	tx, err := bt.NewTxFromBytes(txData.Transaction)
 	if err != nil {
 		return
 	}
@@ -79,6 +86,7 @@ func LoadOrigin(txid string, vout uint32, maxDepth uint32) (origin []byte, err e
 		}
 
 		if len(origin) > 0 {
+			ProcessInsTx(tx, txData.BlockHeight, uint32(txData.BlockIndex))
 			_, err = db.Exec(`INSERT INTO ordinals(outpoint, outsat, origin)
 				VALUES($1, 0, $2)
 				ON CONFLICT(outpoint, outsat) DO UPDATE

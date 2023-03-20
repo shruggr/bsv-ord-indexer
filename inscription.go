@@ -34,12 +34,14 @@ func InscriptionFromScript(lock []byte) (ins *Inscription, insLock []byte) {
 	insLock = lock[:idx]
 	idx += len(PATTERN)
 	if idx >= len(lock) {
+		// log.Panicln("Bad Inscription")
 		return
 	}
 
 	script := bscript.NewFromBytes((lock)[idx:])
 	parts, err := bscript.DecodeParts(*script)
 	if err != nil {
+		// log.Panic(err)
 		return
 	}
 
@@ -127,6 +129,7 @@ func ProcessInsTx(tx *bt.Tx, height uint32, idx uint32) (ins []*InscriptionMeta,
 		}
 		im.Origin, err = LoadOrigin(tx.TxID(), uint32(vout), 100)
 		if err != nil {
+			log.Panic(err)
 			return
 		}
 		err = im.Save()
