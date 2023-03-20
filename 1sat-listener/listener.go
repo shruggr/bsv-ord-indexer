@@ -93,8 +93,6 @@ func onOneSatHandler(txResp *jbModels.TransactionResponse) {
 	if err != nil {
 		log.Printf("OnTransaction Parse Error: %s %+v\n", txResp.Id, err)
 	}
-	height := uint32(txResp.BlockHeight)
-	idx := uint32(txResp.BlockIndex)
 
 	wg.Add(1)
 	threadsChan <- struct{}{}
@@ -106,10 +104,6 @@ func onOneSatHandler(txResp *jbModels.TransactionResponse) {
 					log.Printf("LoadOrigin Error: %s %+v\n", tx.TxID(), err)
 				}
 			}
-		}
-		_, err = bsvord.ProcessInsTx(tx, height, idx)
-		if err != nil {
-			log.Printf("ProcessInsTx Error: %s %+v\n", txResp.Id, err)
 		}
 		wg.Done()
 		<-threadsChan

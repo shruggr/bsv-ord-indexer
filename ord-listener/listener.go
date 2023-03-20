@@ -16,8 +16,10 @@ import (
 )
 
 const INDEXER = "ord"
+const THREADS = 16
 
 var db *sql.DB
+var threadsChan = make(chan struct{}, THREADS)
 
 func init() {
 	godotenv.Load("../.env")
@@ -29,8 +31,9 @@ func init() {
 	}
 }
 
+var wg sync.WaitGroup
+
 func main() {
-	var wg sync.WaitGroup
 	junglebusClient, err := junglebus.New(
 		junglebus.WithHTTP("https://junglebus.gorillapool.io"),
 	)
@@ -38,18 +41,18 @@ func main() {
 		log.Fatalln(err.Error())
 	}
 
-	wg.Add(1)
-
 	var fromBlock uint32
-	row := db.QueryRow(`SELECT height
-			FROM progress
-			WHERE indexer='ord'`,
+	row := db.QueryRow(`SELECT height+1
+	FROM progress
+	WHERE indexer='ord'`,
 	)
 	row.Scan(&fromBlock)
 	if fromBlock < bsvord.TRIGGER {
 		fromBlock = bsvord.TRIGGER
 	}
 
+	var wg2 sync.WaitGroup
+	wg2.Add(1)
 	if _, err = junglebusClient.Subscribe(
 		context.Background(),
 		os.Getenv("ORD"),
@@ -58,6 +61,7 @@ func main() {
 			OnTransaction: onOrdHandler,
 			OnMempool:     onOrdHandler,
 			OnStatus: func(status *jbModels.ControlResponse) {
+				wg.Wait()
 				log.Printf("[STATUS]: %v\n", status)
 				if status.StatusCode == 200 {
 					if _, err := db.Exec(`INSERT INTO progress(indexer, height)
@@ -77,10 +81,10 @@ func main() {
 		},
 	); err != nil {
 		log.Printf("ERROR: failed getting subscription %s", err.Error())
-		wg.Done()
+		wg2.Done()
 	}
 
-	wg.Wait()
+	wg2.Wait()
 }
 
 func onOrdHandler(txResp *jbModels.TransactionResponse) {
@@ -90,8 +94,16 @@ func onOrdHandler(txResp *jbModels.TransactionResponse) {
 		log.Printf("OnTransaction Parse Error: %s %+v\n", txResp.Id, err)
 
 	}
-	_, err = bsvord.ProcessInsTx(tx, txResp.BlockHeight, uint32(txResp.BlockIndex))
-	if err != nil {
-		log.Printf("OnTransaction Ins Error: %s %+v\n", txResp.Id, err)
-	}
+	wg.Add(1)
+	threadsChan <- struct{}{}
+	height := uint32(txResp.BlockHeight)
+	idx := uint32(txResp.BlockIndex)
+	go func() {
+		_, err = bsvord.ProcessInsTx(tx, height, idx)
+		if err != nil {
+			log.Printf("OnTransaction Ins Error: %s %+v\n", txResp.Id, err)
+		}
+		wg.Done()
+		<-threadsChan
+	}()
 }
