@@ -26,12 +26,12 @@ type Inscription struct {
 	Type string
 }
 
-func InscriptionFromScript(lock []byte) (ins *Inscription) {
+func InscriptionFromScript(lock []byte) (ins *Inscription, insLock []byte) {
 	idx := bytes.Index(lock, PATTERN)
 	if idx == -1 {
 		return
 	}
-
+	insLock = lock[:idx]
 	idx += len(PATTERN)
 	if idx >= len(lock) {
 		return
@@ -79,12 +79,13 @@ type InscriptionMeta struct {
 	Ordinal uint32     `json:"ordinal"`
 	Height  uint32     `json:"height"`
 	Idx     uint32     `json:"idx"`
+	Lock    []byte     `json:"lock"`
 }
 
 func (im *InscriptionMeta) Save() (err error) {
 	_, err = db.Exec(`
-		INSERT INTO inscriptions(txid, vout, height, idx, filehash, filesize, filetype, origin)
-		VALUES($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO inscriptions(txid, vout, height, idx, filehash, filesize, filetype, origin, lock)
+		VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		ON CONFLICT(txid, vout) DO UPDATE
 			SET height=EXCLUDED.height, idx=EXCLUDED.idx`,
 		im.Txid,
@@ -95,13 +96,17 @@ func (im *InscriptionMeta) Save() (err error) {
 		im.File.Size,
 		im.File.Type,
 		im.Origin,
+		im.Lock,
 	)
+	if err != nil {
+		log.Panic(err)
+	}
 	return
 }
 
 func ProcessInsTx(tx *bt.Tx, height uint32, idx uint32) (ins []*InscriptionMeta, err error) {
 	for vout, txout := range tx.Outputs {
-		inscription := InscriptionFromScript(*txout.LockingScript)
+		inscription, lock := InscriptionFromScript(*txout.LockingScript)
 		if inscription == nil {
 			continue
 		}
@@ -118,6 +123,7 @@ func ProcessInsTx(tx *bt.Tx, height uint32, idx uint32) (ins []*InscriptionMeta,
 			},
 			Height: height,
 			Idx:    idx,
+			Lock:   lock,
 		}
 		im.Origin, err = LoadOrigin(tx.TxID(), uint32(vout), 100)
 		if err != nil {
@@ -125,6 +131,7 @@ func ProcessInsTx(tx *bt.Tx, height uint32, idx uint32) (ins []*InscriptionMeta,
 		}
 		err = im.Save()
 		if err != nil {
+			log.Panic(err)
 			return
 		}
 		ins = append(ins, im)
@@ -134,7 +141,7 @@ func ProcessInsTx(tx *bt.Tx, height uint32, idx uint32) (ins []*InscriptionMeta,
 }
 
 func GetInsByOrigin(origin []byte) (ins []*InscriptionMeta, err error) {
-	rows, err := db.Query(`SELECT txid, vout, filehash, filesize, filetype, id, origin, ordinal, height, idx
+	rows, err := db.Query(`SELECT txid, vout, filehash, filesize, filetype, id, origin, ordinal, height, idx, lock
 		FROM inscriptions
 		WHERE origin=$1
 		ORDER BY height DESC, idx DESC`,
@@ -158,8 +165,10 @@ func GetInsByOrigin(origin []byte) (ins []*InscriptionMeta, err error) {
 			&im.Ordinal,
 			&im.Height,
 			&im.Idx,
+			&im.Lock,
 		)
 		if err != nil {
+			log.Panic(err)
 			return
 		}
 		ins = append(ins, im)
@@ -200,6 +209,6 @@ func LoadInsByOrigin(origin []byte) (ins *Inscription, err error) {
 		return
 	}
 
-	ins = InscriptionFromScript(*tx.Outputs[vout].LockingScript)
+	ins, _ = InscriptionFromScript(*tx.Outputs[vout].LockingScript)
 	return
 }

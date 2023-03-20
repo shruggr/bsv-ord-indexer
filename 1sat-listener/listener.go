@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"os"
 	"sync"
@@ -41,7 +42,7 @@ func main() {
 	}
 
 	var fromBlock uint32
-	row := db.QueryRow(`SELECT height
+	row := db.QueryRow(`SELECT height+1
 			FROM progress
 			WHERE indexer='1sat'`,
 	)
@@ -87,7 +88,7 @@ func main() {
 }
 
 func onOneSatHandler(txResp *jbModels.TransactionResponse) {
-	// fmt.Printf("[TX]: %d: %v\n", txResp.BlockHeight, txResp.Id)
+	fmt.Printf("[TX]: %d: %v\n", txResp.BlockHeight, txResp.Id)
 	tx, err := bt.NewTxFromBytes(txResp.Transaction)
 	if err != nil {
 		log.Printf("OnTransaction Parse Error: %s %+v\n", txResp.Id, err)
