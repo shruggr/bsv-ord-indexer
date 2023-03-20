@@ -40,7 +40,7 @@ func main() {
 		c.String(http.StatusOK, hex.EncodeToString(origin))
 	})
 
-	r.POST("/api/inscriptions/:txid", func(c *gin.Context) {
+	r.GET("/api/inscriptions/:txid", func(c *gin.Context) {
 		tx, err := bsvord.LoadTx(c.Param("txid"))
 		if err != nil {
 			handleError(c, err)
@@ -49,6 +49,7 @@ func main() {
 		if err != nil {
 			handleError(c, err)
 		}
+		c.Header("cache-control", "max-age=604800,immutable")
 		c.JSON(http.StatusOK, ins)
 	})
 
