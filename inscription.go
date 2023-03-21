@@ -85,7 +85,7 @@ type InscriptionMeta struct {
 }
 
 func (im *InscriptionMeta) Save() (err error) {
-	_, err = db.Exec(`
+	_, err = Db.Exec(`
 		INSERT INTO inscriptions(txid, vout, height, idx, filehash, filesize, filetype, origin, lock)
 		VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		ON CONFLICT(txid, vout) DO UPDATE
@@ -106,45 +106,91 @@ func (im *InscriptionMeta) Save() (err error) {
 	return
 }
 
-func ProcessInsTx(tx *bt.Tx, height uint32, idx uint32) (ins []*InscriptionMeta, err error) {
+func ProcessInsTx(tx *bt.Tx, height uint32, idx uint32) (inscriptions []*InscriptionMeta, err error) {
+	txid := tx.TxIDBytes()
 	for vout, txout := range tx.Outputs {
-		inscription, lock := InscriptionFromScript(*txout.LockingScript)
-		if inscription == nil {
-			continue
-		}
-
-		hash := sha256.Sum256(inscription.Body)
-
-		im := &InscriptionMeta{
-			Txid: tx.TxIDBytes(),
-			Vout: uint32(vout),
-			File: File{
-				Hash: hash[:],
-				Size: uint32(len(inscription.Body)),
-				Type: inscription.Type,
-			},
-			Height: height,
-			Idx:    idx,
-			Lock:   lock,
-		}
-		im.Origin, err = LoadOrigin(tx.TxID(), uint32(vout), 100)
+		var im *InscriptionMeta
+		im, err = ProcessInsOutput(txid, uint32(vout), txout, height, idx)
 		if err != nil {
-			log.Panic(err)
 			return
 		}
-		err = im.Save()
-		if err != nil {
-			log.Panic(err)
-			return
-		}
-		ins = append(ins, im)
+		inscriptions = append(inscriptions, im)
 	}
 
 	return
 }
 
-func GetInsByOrigin(origin []byte) (ins []*InscriptionMeta, err error) {
-	rows, err := db.Query(`SELECT txid, vout, filehash, filesize, filetype, id, origin, ordinal, height, idx, lock
+func ProcessInsOutput(txid []byte, vout uint32, txout *bt.Output, height uint32, idx uint32) (ins *InscriptionMeta, err error) {
+	inscription, lock := InscriptionFromScript(*txout.LockingScript)
+	if inscription == nil {
+		return
+	}
+
+	hash := sha256.Sum256(inscription.Body)
+
+	im := &InscriptionMeta{
+		Txid: txid,
+		Vout: uint32(vout),
+		File: File{
+			Hash: hash[:],
+			Size: uint32(len(inscription.Body)),
+			Type: inscription.Type,
+		},
+		Height: height,
+		Idx:    idx,
+		Lock:   lock,
+	}
+
+	err = im.Save()
+	if err != nil {
+		log.Panic(err)
+		return
+	}
+	return
+}
+
+func GetInsMetaByOutpoint(txid []byte, vout uint32) (im *InscriptionMeta, err error) {
+	rows, err := Db.Query(`SELECT txid, vout, filehash, filesize, filetype, id, origin, ordinal, height, idx, lock
+		FROM inscriptions
+		WHERE txid=$1 AND vout=$2`,
+		txid,
+		vout,
+	)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	if rows.Next() {
+		im = &InscriptionMeta{}
+		err = rows.Scan(
+			&im.Txid,
+			&im.Vout,
+			&im.File.Hash,
+			&im.File.Size,
+			&im.File.Type,
+			&im.Id,
+			&im.Origin,
+			&im.Ordinal,
+			&im.Height,
+			&im.Idx,
+			&im.Lock,
+		)
+		if err != nil {
+			log.Panic(err)
+			return
+		}
+	} else {
+		err = &HttpError{
+			StatusCode: 404,
+			Err:        fmt.Errorf("not-found"),
+		}
+	}
+	return
+}
+
+func GetInsMetaByOrigin(origin []byte) (ins []*InscriptionMeta, err error) {
+	rows, err := Db.Query(`SELECT txid, vout, filehash, filesize, filetype, id, origin, ordinal, height, idx, lock
 		FROM inscriptions
 		WHERE origin=$1
 		ORDER BY height DESC, idx DESC`,
@@ -174,13 +220,14 @@ func GetInsByOrigin(origin []byte) (ins []*InscriptionMeta, err error) {
 			log.Panic(err)
 			return
 		}
+
 		ins = append(ins, im)
 	}
 	return
 }
 
 func LoadInsByOrigin(origin []byte) (ins *Inscription, err error) {
-	rows, err := db.Query(`SELECT txid, vout, filetype
+	rows, err := Db.Query(`SELECT txid, vout, filetype
 		FROM inscriptions
 		WHERE origin=$1
 		ORDER BY height DESC, idx DESC
@@ -207,7 +254,7 @@ func LoadInsByOrigin(origin []byte) (ins *Inscription, err error) {
 		return
 	}
 
-	tx, err := LoadTx(hex.EncodeToString(txid))
+	tx, err := LoadTx(txid)
 	if err != nil {
 		return
 	}

@@ -20,7 +20,10 @@ func main() {
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler, url))
 
 	r.GET("/api/origins/:txid/:vout", func(c *gin.Context) {
-		txid := c.Param("txid")
+		txid, err := hex.DecodeString(c.Param("txid"))
+		if err != nil {
+			handleError(c, err)
+		}
 		vout, err := strconv.ParseUint(c.Param("vout"), 10, 32)
 		if err != nil {
 			c.String(http.StatusBadRequest, fmt.Sprintf("error: %s", err))
@@ -41,7 +44,11 @@ func main() {
 	})
 
 	r.POST("/api/inscriptions/:txid", func(c *gin.Context) {
-		tx, err := bsvord.LoadTx(c.Param("txid"))
+		txid, err := hex.DecodeString(c.Param("txid"))
+		if err != nil {
+			handleError(c, err)
+		}
+		tx, err := bsvord.LoadTx(txid)
 		if err != nil {
 			handleError(c, err)
 		}
@@ -52,8 +59,40 @@ func main() {
 		c.JSON(http.StatusOK, ins)
 	})
 
+	r.GET("/api/inscriptions/:txid/:vout", func(c *gin.Context) {
+		txid, err := hex.DecodeString(c.Param("txid"))
+		if err != nil {
+			handleError(c, err)
+		}
+		vout, err := strconv.ParseUint(c.Param("vout"), 10, 32)
+		if err != nil {
+			handleError(c, err)
+		}
+		row := bsvord.GetInsNumber.QueryRow(txid, vout)
+		var insNum uint
+		err = row.Scan(&insNum)
+		if err != nil {
+			handleError(c, err)
+		}
+		// tx, err := bsvord.LoadTx(txid)
+		// if err != nil {
+		// 	handleError(c, err)
+		// }
+		// ins, err := bsvord.ProcessInsTx(tx, 0, 0)
+		// if err != nil {
+		// 	handleError(c, err)
+		// }
+
+		c.Header("cache-control", "max-age=604800,immutable")
+		c.String(http.StatusOK, strconv.FormatUint(uint64(insNum), 10))
+	})
+
 	r.GET("/api/inscriptions/:txid", func(c *gin.Context) {
-		tx, err := bsvord.LoadTx(c.Param("txid"))
+		txid, err := hex.DecodeString(c.Param("txid"))
+		if err != nil {
+			handleError(c, err)
+		}
+		tx, err := bsvord.LoadTx(txid)
 		if err != nil {
 			handleError(c, err)
 		}
@@ -61,6 +100,7 @@ func main() {
 		if err != nil {
 			handleError(c, err)
 		}
+
 		c.Header("cache-control", "max-age=604800,immutable")
 		c.JSON(http.StatusOK, ins)
 	})

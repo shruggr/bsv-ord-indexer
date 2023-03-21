@@ -6,9 +6,9 @@ require (
 	github.com/GorillaPool/go-junglebus v0.0.0-20220928133317-2e3624f72bf9
 	github.com/gin-gonic/gin v1.9.0
 	github.com/golang-migrate/migrate v3.5.4+incompatible
+	github.com/hashicorp/golang-lru/v2 v2.0.2
 	github.com/joho/godotenv v1.5.1
 	github.com/lib/pq v1.10.7
-	github.com/libsv/go-bt v1.0.8
 	github.com/libsv/go-bt/v2 v2.1.1
 	github.com/swaggo/files v1.0.0
 	github.com/swaggo/gin-swagger v1.5.3
@@ -20,8 +20,6 @@ require (
 	github.com/Microsoft/go-winio v0.6.0 // indirect
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
-	github.com/bitcoinsv/bsvd v0.0.0-20190609155523-4c29707f7173 // indirect
-	github.com/bitcoinsv/bsvutil v0.0.0-20181216182056-1d77cf353ea9 // indirect
 	github.com/bytedance/sonic v1.8.0 // indirect
 	github.com/centrifugal/centrifuge-go v0.9.3 // indirect
 	github.com/centrifugal/protocol v0.8.11 // indirect

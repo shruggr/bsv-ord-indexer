@@ -2,20 +2,14 @@ package bsvordindexer
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 
 	"github.com/libsv/go-bt/v2"
 )
 
-func LoadOrigin(txid string, vout uint32, maxDepth uint32) (origin []byte, err error) {
-	fmt.Println("LoadOrigin:", txid, vout)
-	outpoint, err := hex.DecodeString(txid)
-	if err != nil {
-		return
-	}
-	outpoint = binary.BigEndian.AppendUint32(outpoint, vout)
-	rows, err := db.Query(`SELECT origin
+func LoadOrigin(txid []byte, vout uint32, maxDepth uint32) (origin []byte, err error) {
+	outpoint := binary.BigEndian.AppendUint32(txid, vout)
+	rows, err := Db.Query(`SELECT origin
 		FROM ordinals
 		WHERE outpoint=$1 AND outsat=$2 AND origin IS NOT NULL`,
 		outpoint,
@@ -34,7 +28,7 @@ func LoadOrigin(txid string, vout uint32, maxDepth uint32) (origin []byte, err e
 	if maxDepth == 0 {
 		return
 	}
-	fmt.Printf("Indexing Origin %x\n", outpoint)
+	fmt.Printf("Indexing Origin %x %d\n", txid, vout)
 
 	txData, err := LoadTxData(txid)
 	if err != nil {
@@ -44,6 +38,11 @@ func LoadOrigin(txid string, vout uint32, maxDepth uint32) (origin []byte, err e
 	if err != nil {
 		return
 	}
+	_, err = ProcessInsTx(tx, txData.BlockHeight, uint32(txData.BlockIndex))
+	if err != nil {
+		return nil, err
+	}
+
 	if int(vout) >= len(tx.Outputs) {
 		err = &HttpError{
 			StatusCode: 400,
@@ -58,6 +57,7 @@ func LoadOrigin(txid string, vout uint32, maxDepth uint32) (origin []byte, err e
 		}
 		return
 	}
+
 	var txOutSat uint64
 	for _, out := range tx.Outputs[0:vout] {
 		txOutSat += out.Satoshis
@@ -65,7 +65,7 @@ func LoadOrigin(txid string, vout uint32, maxDepth uint32) (origin []byte, err e
 
 	var inSats uint64
 	for _, input := range tx.Inputs {
-		inTx, err := LoadTx(input.PreviousTxIDStr())
+		inTx, err := LoadTx(input.PreviousTxID())
 		if err != nil {
 			return nil, err
 		}
@@ -79,15 +79,15 @@ func LoadOrigin(txid string, vout uint32, maxDepth uint32) (origin []byte, err e
 		if inTx.Outputs[input.PreviousTxOutIndex].Satoshis > 1 {
 			origin = outpoint
 		} else {
-			origin, err = LoadOrigin(input.PreviousTxIDStr(), input.PreviousTxOutIndex, maxDepth-1)
+			fmt.Printf("Loading Parent Origin %x %d\n", txid, vout)
+			origin, err = LoadOrigin(input.PreviousTxID(), input.PreviousTxOutIndex, maxDepth-1)
 			if err != nil {
 				return nil, err
 			}
 		}
 
 		if len(origin) > 0 {
-			ProcessInsTx(tx, txData.BlockHeight, uint32(txData.BlockIndex))
-			_, err = db.Exec(`INSERT INTO ordinals(outpoint, outsat, origin)
+			_, err = Db.Exec(`INSERT INTO ordinals(outpoint, outsat, origin)
 				VALUES($1, 0, $2)
 				ON CONFLICT(outpoint, outsat) DO UPDATE
 					SET origin=EXCLUDED.origin`,

@@ -20,6 +20,8 @@ const THREADS = 16
 
 var db *sql.DB
 var threadsChan = make(chan struct{}, THREADS)
+var processedIdx = map[uint64]bool{}
+var m sync.Mutex
 
 func init() {
 	godotenv.Load("../.env")
@@ -59,7 +61,7 @@ func main() {
 		uint64(fromBlock),
 		junglebus.EventHandler{
 			OnTransaction: onOneSatHandler,
-			OnMempool:     onOneSatHandler,
+			// OnMempool:     onOneSatHandler,
 			OnStatus: func(status *jbModels.ControlResponse) {
 				log.Printf("[STATUS]: %v\n", status)
 				if status.StatusCode == 200 {
@@ -73,6 +75,9 @@ func main() {
 					); err != nil {
 						log.Print(err)
 					}
+					m.Lock()
+					processedIdx = map[uint64]bool{}
+					m.Unlock()
 				}
 			},
 			OnError: func(err error) {
@@ -89,6 +94,13 @@ func main() {
 
 func onOneSatHandler(txResp *jbModels.TransactionResponse) {
 	fmt.Printf("[TX]: %d: %v\n", txResp.BlockHeight, txResp.Id)
+
+	m.Lock()
+	if _, ok := processedIdx[txResp.BlockIndex]; txResp.BlockHeight > 0 && ok {
+		fmt.Println("Already Processed:", txResp.Id)
+		return
+	}
+	m.Lock()
 	tx, err := bt.NewTxFromBytes(txResp.Transaction)
 	if err != nil {
 		log.Printf("OnTransaction Parse Error: %s %+v\n", txResp.Id, err)
@@ -96,17 +108,23 @@ func onOneSatHandler(txResp *jbModels.TransactionResponse) {
 
 	wg.Add(1)
 	threadsChan <- struct{}{}
-	go func() {
+	txid := tx.TxIDBytes()
+	go func(txResp *jbModels.TransactionResponse) {
 		for vout, txout := range tx.Outputs {
 			if txout.Satoshis == 1 {
-				_, err = bsvord.LoadOrigin(tx.TxID(), uint32(vout), 25)
+				_, err = bsvord.LoadOrigin(txid, uint32(vout), 25)
 				if err != nil {
 					log.Printf("LoadOrigin Error: %s %+v\n", tx.TxID(), err)
 				}
 			}
 		}
 		wg.Done()
+		if txResp.BlockHeight > 0 {
+			m.Lock()
+			processedIdx[txResp.BlockIndex] = true
+			m.Unlock()
+		}
 		<-threadsChan
-	}()
+	}(txResp)
 
 }

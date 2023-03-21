@@ -3,16 +3,16 @@ package bsvordindexer
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
 	"os"
 
 	"github.com/GorillaPool/go-junglebus"
 	"github.com/GorillaPool/go-junglebus/models"
+	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"github.com/libsv/go-bt/v2"
@@ -20,14 +20,15 @@ import (
 
 var TRIGGER = uint32(783968)
 
-// var txCache = make(map[string]*bt.Tx)
-var db *sql.DB
+var txCache *lru.ARCCache[string, *models.Transaction]
+var Db *sql.DB
 var JBClient *junglebus.JungleBusClient
+var GetInsNumber *sql.Stmt
 
 func init() {
 	godotenv.Load("../.env")
 	var err error
-	db, err = sql.Open("postgres", os.Getenv("POSTGRES"))
+	Db, err = sql.Open("postgres", os.Getenv("POSTGRES"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -42,30 +43,42 @@ func init() {
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
-}
 
-func LoadTx(txid string) (tx *bt.Tx, err error) {
-	resp, err := http.Get(fmt.Sprintf("https://junglebus.gorillapool.io/v1/transaction/get/%s/bin", txid))
+	GetInsNumber, err = Db.Prepare(`
+		SELECT COUNT(i.txid) 
+		FROM inscriptions i
+		JOIN inscriptions l ON i.height < l.height OR (i.height = l.height AND i.idx < l.idx)
+		WHERE l.txid=$1 AND l.vout=$2
+	`)
 	if err != nil {
-		return nil, err
+		log.Panic(err)
 	}
 
-	if resp.StatusCode >= 400 {
-		err = &HttpError{
-			StatusCode: resp.StatusCode,
-			Err:        err,
-		}
+	txCache, err = lru.NewARC[string, *models.Transaction](2 ^ 30)
+	if err != nil {
+		log.Panic(err)
+	}
+}
+
+func LoadTx(txid []byte) (tx *bt.Tx, err error) {
+	txData, err := LoadTxData(txid)
+	if err != nil {
 		return
 	}
-	rawtx, err := io.ReadAll(resp.Body)
+	return bt.NewTxFromBytes(txData.Transaction)
+}
+
+func LoadTxData(txid []byte) (*models.Transaction, error) {
+	key := base64.StdEncoding.EncodeToString(txid)
+	if txData, ok := txCache.Get(key); ok {
+		return txData, nil
+	}
+	txData, err := JBClient.GetTransaction(context.Background(), hex.EncodeToString(txid))
 	if err != nil {
 		return nil, err
 	}
-	return bt.NewTxFromBytes(rawtx)
-}
-
-func LoadTxData(txid string) (*models.Transaction, error) {
-	return JBClient.GetTransaction(context.Background(), txid)
+	txCache.Add(key, txData)
+	return txData, nil
 }
 
 // ByteString is a byte array that serializes to hex
