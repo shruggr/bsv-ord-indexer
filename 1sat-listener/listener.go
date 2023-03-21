@@ -35,6 +35,9 @@ func init() {
 
 var wg sync.WaitGroup
 
+// var txids = make(chan []byte, 2^32)
+var txids = [][]byte{}
+
 func main() {
 	junglebusClient, err := junglebus.New(
 		junglebus.WithHTTP("https://junglebus.gorillapool.io"),
@@ -66,6 +69,8 @@ func main() {
 				log.Printf("[STATUS]: %v\n", status)
 				if status.StatusCode == 200 {
 					wg.Wait()
+					processOrigins()
+					wg.Wait()
 					if _, err := db.Exec(`INSERT INTO progress(indexer, height)
 						VALUES($1, $2)
 						ON CONFLICT(indexer) DO UPDATE
@@ -75,9 +80,11 @@ func main() {
 					); err != nil {
 						log.Print(err)
 					}
+					fromBlock = status.Block + 1
 					m.Lock()
 					processedIdx = map[uint64]bool{}
 					m.Unlock()
+					txids = [][]byte{}
 				}
 			},
 			OnError: func(err error) {
@@ -98,26 +105,27 @@ func onOneSatHandler(txResp *jbModels.TransactionResponse) {
 	m.Lock()
 	if _, ok := processedIdx[txResp.BlockIndex]; txResp.BlockHeight > 0 && ok {
 		fmt.Println("Already Processed:", txResp.Id)
+		m.Unlock()
 		return
 	}
-	m.Lock()
+	m.Unlock()
+
 	tx, err := bt.NewTxFromBytes(txResp.Transaction)
 	if err != nil {
 		log.Printf("OnTransaction Parse Error: %s %+v\n", txResp.Id, err)
 	}
+	if txResp.BlockHeight > 0 {
+		txids = append(txids, tx.TxIDBytes())
+	}
 
 	wg.Add(1)
 	threadsChan <- struct{}{}
-	txid := tx.TxIDBytes()
 	go func(txResp *jbModels.TransactionResponse) {
-		for vout, txout := range tx.Outputs {
-			if txout.Satoshis == 1 {
-				_, err = bsvord.LoadOrigin(txid, uint32(vout), 25)
-				if err != nil {
-					log.Printf("LoadOrigin Error: %s %+v\n", tx.TxID(), err)
-				}
-			}
+		err = bsvord.IndexTxos(tx, txResp.BlockHeight, uint32(txResp.BlockIndex))
+		if err != nil {
+			log.Fatal(err)
 		}
+
 		wg.Done()
 		if txResp.BlockHeight > 0 {
 			m.Lock()
@@ -127,4 +135,19 @@ func onOneSatHandler(txResp *jbModels.TransactionResponse) {
 		<-threadsChan
 	}(txResp)
 
+}
+
+func processOrigins() {
+	for _, txid := range txids {
+		wg.Add(1)
+		threadsChan <- struct{}{}
+		go func(txid []byte) {
+			err := bsvord.IndexOrigins(txid)
+			if err != nil {
+				log.Fatal(err)
+			}
+			wg.Done()
+			<-threadsChan
+		}(txid)
+	}
 }
