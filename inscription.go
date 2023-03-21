@@ -114,7 +114,9 @@ func ProcessInsTx(tx *bt.Tx, height uint32, idx uint32) (inscriptions []*Inscrip
 		if err != nil {
 			return
 		}
-		inscriptions = append(inscriptions, im)
+		if im != nil {
+			inscriptions = append(inscriptions, im)
+		}
 	}
 
 	return
@@ -123,6 +125,7 @@ func ProcessInsTx(tx *bt.Tx, height uint32, idx uint32) (inscriptions []*Inscrip
 func ProcessInsOutput(txid []byte, vout uint32, txout *bt.Output, height uint32, idx uint32) (ins *InscriptionMeta, err error) {
 	inscription, lock := InscriptionFromScript(*txout.LockingScript)
 	if inscription == nil {
+		fmt.Printf("Not an inscription: %x %d\n", txid, vout)
 		return
 	}
 

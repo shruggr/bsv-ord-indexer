@@ -43,21 +43,21 @@ func main() {
 		c.String(http.StatusOK, hex.EncodeToString(origin))
 	})
 
-	r.POST("/api/inscriptions/:txid", func(c *gin.Context) {
-		txid, err := hex.DecodeString(c.Param("txid"))
-		if err != nil {
-			handleError(c, err)
-		}
-		tx, err := bsvord.LoadTx(txid)
-		if err != nil {
-			handleError(c, err)
-		}
-		ins, err := bsvord.ProcessInsTx(tx, 0, 0)
-		if err != nil {
-			handleError(c, err)
-		}
-		c.JSON(http.StatusOK, ins)
-	})
+	// r.POST("/api/inscriptions/:txid", func(c *gin.Context) {
+	// 	txid, err := hex.DecodeString(c.Param("txid"))
+	// 	if err != nil {
+	// 		handleError(c, err)
+	// 	}
+	// 	tx, err := bsvord.LoadTx(txid)
+	// 	if err != nil {
+	// 		handleError(c, err)
+	// 	}
+	// 	ins, err := bsvord.ProcessInsTx(tx, 0, 0)
+	// 	if err != nil {
+	// 		handleError(c, err)
+	// 	}
+	// 	c.JSON(http.StatusOK, ins)
+	// })
 
 	r.GET("/api/inscriptions/:txid/:vout", func(c *gin.Context) {
 		txid, err := hex.DecodeString(c.Param("txid"))

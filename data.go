@@ -73,6 +73,7 @@ func LoadTxData(txid []byte) (*models.Transaction, error) {
 	if txData, ok := txCache.Get(key); ok {
 		return txData, nil
 	}
+	fmt.Printf("Fetching Tx: %x\n", txid)
 	txData, err := JBClient.GetTransaction(context.Background(), hex.EncodeToString(txid))
 	if err != nil {
 		return nil, err
