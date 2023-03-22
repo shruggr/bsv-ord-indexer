@@ -36,17 +36,20 @@ func init() {
 var wg sync.WaitGroup
 
 // var txids = make(chan []byte, 2^32)
+var junglebusClient *junglebus.JungleBusClient
 var txids = [][]byte{}
+var sub *junglebus.Subscription
+var fromBlock uint32
 
 func main() {
-	junglebusClient, err := junglebus.New(
+	var err error
+	junglebusClient, err = junglebus.New(
 		junglebus.WithHTTP("https://junglebus.gorillapool.io"),
 	)
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
 
-	var fromBlock uint32
 	row := db.QueryRow(`SELECT height+1
 			FROM progress
 			WHERE indexer='1sat'`,
@@ -58,7 +61,13 @@ func main() {
 
 	var wg2 sync.WaitGroup
 	wg2.Add(1)
-	if _, err = junglebusClient.Subscribe(
+	subscribe()
+	wg2.Wait()
+}
+
+func subscribe() {
+	var err error
+	sub, err = junglebusClient.Subscribe(
 		context.Background(),
 		os.Getenv("ONESAT"),
 		uint64(fromBlock),
@@ -68,6 +77,7 @@ func main() {
 			OnStatus: func(status *jbModels.ControlResponse) {
 				log.Printf("[STATUS]: %v\n", status)
 				if status.StatusCode == 200 {
+					sub.Unsubscribe()
 					wg.Wait()
 					processOrigins()
 					wg.Wait()
@@ -80,25 +90,26 @@ func main() {
 					); err != nil {
 						log.Print(err)
 					}
-					fromBlock = status.Block + 1
+					fromBlock++
 					m.Lock()
 					processedIdx = map[uint64]bool{}
 					m.Unlock()
 					txids = [][]byte{}
+					subscribe()
 				}
 			},
 			OnError: func(err error) {
 				log.Printf("[ERROR]: %v", err)
 			},
 		},
-	); err != nil {
-		log.Printf("ERROR: failed getting subscription %s", err.Error())
-		wg2.Done()
+	)
+	if err != nil {
+		// log.Printf("ERROR: failed getting subscription %s", err.Error())
+
+		// wg2.Done()
+		log.Panic(err)
 	}
-
-	wg2.Wait()
 }
-
 func onOneSatHandler(txResp *jbModels.TransactionResponse) {
 	fmt.Printf("[TX]: %d: %v\n", txResp.BlockHeight, txResp.Id)
 

@@ -115,6 +115,7 @@ type InscriptionMeta struct {
 }
 
 func (im *InscriptionMeta) Save() (err error) {
+	// log.Printf("Saving %x %d %d\n", im.Txid, im.Height, im.Idx)
 	_, err = insInscription.Exec(
 		im.Txid,
 		im.Vout,
@@ -127,6 +128,7 @@ func (im *InscriptionMeta) Save() (err error) {
 		im.Lock[:],
 	)
 	if err != nil {
+		log.Panicf("Save Error: %x %+v\n", im.Txid, err)
 		log.Panic(err)
 	}
 	return

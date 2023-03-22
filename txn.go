@@ -148,8 +148,6 @@ func ProcessInsOutput(txout *bt.Output) (im *InscriptionMeta, err error) {
 		},
 		Lock: lock[:],
 	}
-
-	err = im.Save()
 	return
 }
 
