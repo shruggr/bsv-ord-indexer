@@ -84,10 +84,18 @@ func InscriptionFromScript(script bscript.Script) (ins *Inscription, lock [32]by
 		opcode := op[0]
 		switch opcode {
 		case bscript.Op0:
-			ins.Body = parts[i+1]
+			value := parts[i+1]
+			if len(value) == 1 && value[0] == bscript.Op0 {
+				value = []byte{}
+			}
+			ins.Body = value
 			return
 		case bscript.Op1:
-			ins.Type = string(parts[i+1])
+			value := parts[i+1]
+			if len(value) == 1 && value[0] == bscript.Op0 {
+				value = []byte{}
+			}
+			ins.Type = string(value)
 		case bscript.OpENDIF:
 			return
 		}
@@ -128,7 +136,7 @@ func (im *InscriptionMeta) Save() (err error) {
 		im.Lock[:],
 	)
 	if err != nil {
-		log.Panicf("Save Error: %x %+v\n", im.Txid, err)
+		log.Panicf("Save Error: %x %d %x %+v\n", im.Txid, im.File.Size, im.File.Type, err)
 		log.Panic(err)
 	}
 	return

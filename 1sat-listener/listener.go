@@ -131,8 +131,10 @@ func onOneSatHandler(txResp *jbModels.TransactionResponse) {
 
 	wg.Add(1)
 	threadsChan <- struct{}{}
-	go func(txResp *jbModels.TransactionResponse) {
-		err = bsvord.IndexTxos(tx, txResp.BlockHeight, uint32(txResp.BlockIndex))
+	height := txResp.BlockHeight
+	idx := txResp.BlockIndex
+	go func(height uint32, idx uint64) {
+		err = bsvord.IndexTxos(tx, height, uint32(idx))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -140,12 +142,11 @@ func onOneSatHandler(txResp *jbModels.TransactionResponse) {
 		wg.Done()
 		if txResp.BlockHeight > 0 {
 			m.Lock()
-			processedIdx[txResp.BlockIndex] = true
+			processedIdx[idx] = true
 			m.Unlock()
 		}
 		<-threadsChan
-	}(txResp)
-
+	}(height, idx)
 }
 
 func processOrigins() {

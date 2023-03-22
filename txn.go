@@ -60,6 +60,7 @@ func init() {
 func IndexTxos(tx *bt.Tx, height uint32, idx uint32) (err error) {
 	txid := tx.TxIDBytes()
 	fmt.Printf("Indexing Txos %x\n", txid)
+
 	for vout, txout := range tx.Outputs {
 		var accSats uint64
 		accSats += txout.Satoshis
