@@ -1,17 +1,7 @@
-CREATE TABLE IF NOT EXISTS ordinals(
-	txid BYTEA,
-	vout INTEGER,
-	sat BIGINT,
-	origin BYTEA,
-	ordinal BIGINT,
-	PRIMARY KEY(txid, vout, sat)
-);
-
 CREATE TABLE progress(
     indexer VARCHAR(32) PRIMARY KEY,
     height INTEGER
 );
-
 
 CREATE TABLE txos(
     txid BYTEA,
@@ -33,7 +23,7 @@ CREATE TABLE inscriptions(
     vout INTEGER,
     filehash BYTEA,
     filesize INTEGER,
-    filetype VARCHAR(256),
+    filetype BYTEA,
     id BIGINT,
     origin BYTEA,
     ordinal BIGINT,
